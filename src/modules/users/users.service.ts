@@ -10,6 +10,9 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
 import { Model } from 'mongoose';
 import { hashPswHelper } from 'src/ulti/helper';
+import { RegisterUserDto } from 'src/authService/dto/register.dtoi';
+import dayjs from 'dayjs';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
@@ -80,5 +83,23 @@ export class UsersService {
   async remove(_id: string) {
     await this.userModel.deleteOne({ _id });
     return 'delete this user successfully';
+  }
+
+  async register(regisDto: RegisterUserDto) {
+    const existEmail = await this.checkEmail(regisDto.email);
+    if (existEmail) {
+      throw new BadRequestException('This email has already existed');
+    }
+
+    const hassPwd = await hashPswHelper(regisDto.password);
+    const createUser = new this.userModel({
+      ...regisDto,
+      password: hassPwd,
+      isActive: false,
+      codeId: uuidv4(),
+      codeExpired: dayjs().add(1, 'day'),
+    });
+    const result = await createUser.save();
+    return { message: 'register successfully', data: result._id };
   }
 }
