@@ -95,9 +95,6 @@ export class UsersService {
     const createUser = new this.userModel({
       ...regisDto,
       password: hassPwd,
-      isActive: false,
-      codeId: uuidv4(),
-      codeExpired: dayjs().add(1, 'day'),
     });
     const result = await createUser.save();
     return { message: 'register successfully', data: result._id };

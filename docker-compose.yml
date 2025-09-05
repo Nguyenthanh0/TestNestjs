@@ -10,6 +10,13 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: 8e9resHOxNvpj1Q0
     volumes:
       - mongo-data:/data/db # sửa lại thành mongo-data
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog
+    restart: always
+    ports:
+      - '1025:1025' # SMTP server
+      - '8025:8025' # Web UI
 
 volumes:
   mongo-data:

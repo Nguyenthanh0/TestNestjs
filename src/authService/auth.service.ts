@@ -14,7 +14,7 @@ import { CreateUserDto } from 'src/modules/users/dto/create-user.dto';
 import { RegisterUserDto } from './dto/register.dtoi';
 
 export interface JwtUser {
-  _id: string; // đã là string sau khi .toString()
+  _id: string;
   name: string;
 }
 @Injectable()
