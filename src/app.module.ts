@@ -7,6 +7,7 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './authService/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { sendEmailModule } from './authService/email/sendemail.module';
 
 @Module({
   imports: [
@@ -20,31 +21,32 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
     }),
     UsersModule,
     AuthModule,
+    sendEmailModule,
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         transport: {
-          host: configService.get<string>('MAILDEV_INCOMING_HOST'),
-          port: 465,
+          host: 'localhost',
+          port: 1025,
           // ignoreTLS: true,
-          secure: true,
-          auth: {
-            user: configService.get<string>('MAILDEV_INCOMING_USER'),
-            pass: configService.get<string>('MAILDEV_INCOMING_PASS'),
-          },
+          secure: false,
+          // auth: {
+          //   user: configService.get<string>('MAILDEV_INCOMING_USER'),
+          //   pass: configService.get<string>('MAILDEV_INCOMING_PASS'),
+          // },
         },
         defaults: {
           from: '"No Reply" <no-reply@localhost>',
         },
         // preview: true,
-        // template: {
-        //   dir: process.cwd() + '/template/',
-        //   adapter: new HandlebarsAdapter(), // or new PugAdapter() or new EjsAdapter()
-        //   options: {
-        //     strict: true,
-        //   },
-        // },
+        template: {
+          dir: process.cwd() + '/src/authService/email/template/',
+          adapter: new HandlebarsAdapter(), // or new PugAdapter() or new EjsAdapter()
+          options: {
+            strict: true,
+          },
+        },
       }),
     }),
   ],

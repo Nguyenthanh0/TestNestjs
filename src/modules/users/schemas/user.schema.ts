@@ -33,6 +33,12 @@ export class User {
 
   @Prop({ default: false })
   isActive: boolean;
+
+  @Prop({ type: String, default: null })
+  resetCode: string | null;
+
+  @Prop({ type: Date, default: null })
+  resetCodeExpire: Date | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

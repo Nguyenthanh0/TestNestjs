@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { AuthService, JwtUser } from './auth.service';
 import { LocalAuthGuard } from './passport/local-auth.guard';
-import { CreateUserDto } from 'src/modules/users/dto/create-user.dto';
 import { Public } from './decorator/customizeGuard';
 import { RegisterUserDto } from './dto/register.dtoi';
 
@@ -19,7 +18,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @UseGuards(LocalAuthGuard)
-  async handleLogin(@Request() req: { user: JwtUser }): Promise<any> {
+  async handleLogin(@Request() req: { user: JwtUser }) {
     return this.authService.login(req.user);
   }
 

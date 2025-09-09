@@ -10,7 +10,6 @@ import { Model } from 'mongoose';
 import { User } from 'src/modules/users/schemas/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { UsersService } from 'src/modules/users/users.service';
-import { CreateUserDto } from 'src/modules/users/dto/create-user.dto';
 import { RegisterUserDto } from './dto/register.dtoi';
 
 export interface JwtUser {
