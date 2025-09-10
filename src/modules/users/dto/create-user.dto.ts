@@ -8,6 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { UserRole } from '../schemas/user.schema';
 
 export class CreateUserDto {
   @IsDefined({ message: 'Name is required' })
@@ -41,4 +42,7 @@ export class CreateUserDto {
   @IsOptional()
   @IsString({ message: 'Image must be a string' })
   image: string;
+
+  @IsOptional()
+  role: UserRole;
 }

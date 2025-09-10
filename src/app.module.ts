@@ -4,10 +4,12 @@ import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from './modules/users/users.module';
-import { AuthModule } from './authService/auth.module';
+import { AuthModule } from './authen/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { sendEmailModule } from './authService/email/sendemail.module';
+import { RolesGuard } from './authen/passport/role.guard';
+import { JwtAuthGuard } from './authen/passport/jwt-auth.guard';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -21,7 +23,6 @@ import { sendEmailModule } from './authService/email/sendemail.module';
     }),
     UsersModule,
     AuthModule,
-    sendEmailModule,
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -41,7 +42,7 @@ import { sendEmailModule } from './authService/email/sendemail.module';
         },
         // preview: true,
         template: {
-          dir: process.cwd() + '/src/authService/email/template/',
+          dir: process.cwd() + '/src/authService/template/',
           adapter: new HandlebarsAdapter(), // or new PugAdapter() or new EjsAdapter()
           options: {
             strict: true,
@@ -51,6 +52,6 @@ import { sendEmailModule } from './authService/email/sendemail.module';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}

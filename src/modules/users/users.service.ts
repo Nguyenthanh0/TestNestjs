@@ -1,3 +1,4 @@
+import { IsNotEmpty } from 'class-validator';
 import {
   BadRequestException,
   Injectable,
@@ -10,9 +11,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
 import { Model } from 'mongoose';
 import { hashPswHelper } from 'src/ulti/helper';
-import { RegisterUserDto } from 'src/authService/dto/register.dtoi';
-import dayjs from 'dayjs';
-import { v4 as uuidv4 } from 'uuid';
+import { RegisterUserDto } from 'src/authen/dto/register.dto';
 
 @Injectable()
 export class UsersService {
@@ -63,15 +62,22 @@ export class UsersService {
   //hàm update info user
   async update(_id: string, updateUserDto: UpdateUserDto) {
     try {
+      const existedEmail = await this.userModel.findOne({
+        email: updateUserDto.email,
+      });
+      if (existedEmail) {
+        throw new BadRequestException('This email has already existed');
+      }
       const result = await this.userModel.findByIdAndUpdate(
         _id,
-        { $set: updateUserDto },
+        updateUserDto,
         { new: true }, // trả về document sau khi update
       );
 
       if (!result) {
         throw new NotFoundException('User not found');
       }
+
       return { message: 'update user successfully', data: result };
     } catch (error) {
       console.log('error', error);
