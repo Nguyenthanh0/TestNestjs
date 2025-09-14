@@ -11,11 +11,25 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
 import { Model } from 'mongoose';
 import { hashPswHelper } from 'src/ulti/helper';
-import { RegisterUserDto } from 'src/authen/dto/register.dto';
+import { RegisterUserDto } from 'src/modules/authen/dto/register.dto';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { MailerService } from '@nestjs-modules/mailer';
+import { JwtUser } from '../authen/auth.service';
+import { ForgetPasswordDto } from '../authen/dto/forget-password.dto';
 
+export interface changeEmailPayload {
+  _id: string;
+  email: string;
+}
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    private jwtService: JwtService,
+    private configService: ConfigService,
+    private readonly mailerService: MailerService,
+  ) {}
 
   //hàm check email
   checkEmail = async (email: string) => {
@@ -62,11 +76,12 @@ export class UsersService {
   //hàm update info user
   async update(_id: string, updateUserDto: UpdateUserDto) {
     try {
-      const existedEmail = await this.userModel.findOne({
-        email: updateUserDto.email,
+      const existedUser = await this.userModel.findOne({
+        name: updateUserDto.name,
       });
-      if (existedEmail) {
-        throw new BadRequestException('This email has already existed');
+
+      if (existedUser) {
+        throw new BadRequestException('This username has already existed');
       }
       const result = await this.userModel.findByIdAndUpdate(
         _id,
@@ -96,6 +111,10 @@ export class UsersService {
     if (existEmail) {
       throw new BadRequestException('This email has already existed');
     }
+    const existName = await this.userModel.findOne({ name: regisDto.name });
+    if (existName) {
+      throw new BadRequestException('This username has already existed');
+    }
 
     const hassPwd = await hashPswHelper(regisDto.password);
     const createUser = new this.userModel({
@@ -104,5 +123,60 @@ export class UsersService {
     });
     const result = await createUser.save();
     return { message: 'register successfully', data: result._id };
+  }
+
+  async changeEmail(_id: string, newemail: ForgetPasswordDto) {
+    const exitEmail = await this.userModel.findOne({ email: newemail.email });
+    if (exitEmail) {
+      throw new BadRequestException('This email has already existed');
+    }
+    const user = await this.userModel.findById(_id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const payload = { _id: user._id, email: newemail.email };
+    const token = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_CHANGEEMAIL_KEY'),
+      expiresIn: this.configService.get('RESET_TOKEN_EXPIRED'),
+    });
+    const link = `http://localhost:3000/api/users/verify-email?token=${encodeURIComponent(token)}`;
+    await this.mailerService
+      .sendMail({
+        to: newemail.email,
+        subject: 'Change your email ✔',
+        template: 'change-email',
+        context: {
+          link: link,
+          name: user.name,
+        },
+      })
+      .then(() => {})
+      .catch(() => {});
+    return { message: 'link sent to new email' };
+  }
+
+  async verifyNewEmail(token: string) {
+    try {
+      const payload: changeEmailPayload = this.jwtService.verify(token, {
+        secret: this.configService.get<string>('JWT_CHANGEEMAIL_KEY'),
+      });
+      if (!payload) {
+        throw new BadRequestException('Invalid token');
+      }
+      const { _id, email } = payload;
+      const user = await this.userModel.findById(_id);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      user.email = email;
+      await user.save();
+      return { message: 'Email updated successfully', data: user.email };
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('Verify error:', error.message);
+      } else {
+        console.error('Verify error:', error);
+      }
+    }
   }
 }

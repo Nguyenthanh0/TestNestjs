@@ -11,7 +11,7 @@ import {
 export class ForgetPasswordDto {
   @IsDefined()
   @IsNotEmpty({ message: 'email must be a string' })
-  @IsEmail()
+  @IsEmail({}, { message: 'email must be valid' })
   email: string;
 
   @IsOptional()

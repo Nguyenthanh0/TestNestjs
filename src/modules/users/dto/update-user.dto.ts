@@ -14,11 +14,6 @@ export class UpdateUserDto {
   @ApiProperty() // gợi ý kiểu dữ liệu truyền vào field
   name: string;
 
-  @IsOptional()
-  @IsEmail()
-  @IsString({ message: 'email must be a string' })
-  email: string;
-
   // Optional field, có thể không gửi
   @IsOptional()
   @IsString({ message: 'Phone must be a string' })
