@@ -1,17 +1,10 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService, JwtUser } from './auth.service';
-import { LocalAuthGuard } from './passport/local-auth.guard';
-import { Public } from './decorator/customizeGuard';
+import { LocalAuthGuard } from '../../common/passport/local-auth.guard';
 import { RegisterUserDto } from './dto/register.dto';
 import { ForgetPasswordDto } from './dto/forget-password.dto';
+import { Public } from 'src/common/decorator/customizeGuard';
+import { Verify2faUserDto } from '../users/dto/verify2fa.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -22,6 +15,12 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   async handleLogin(@Request() req: { user: JwtUser }) {
     return this.authService.login(req.user);
+  }
+
+  @Public()
+  @Post('login/2fa')
+  login2fa(@Body('temptoken') temptoken: string, @Body('code') code: string) {
+    return this.authService.loginWith2FA(temptoken, code);
   }
 
   @Public()

@@ -4,10 +4,10 @@ import { AuthService } from './auth.service';
 import { UsersModule } from 'src/modules/users/users.module';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
-import { LocalStrategy } from './passport/local.strategy';
+import { LocalStrategy } from '../../common/passport/local.strategy';
 import { PassportModule } from '@nestjs/passport';
-import { JwtAuthGuard } from './passport/jwt-auth.guard';
-import { JwtStrategy } from './passport/jwt.strategy';
+import { JwtAuthGuard } from '../../common/passport/jwt-auth.guard';
+import { JwtStrategy } from '../../common/passport/jwt.strategy';
 
 @Module({
   imports: [

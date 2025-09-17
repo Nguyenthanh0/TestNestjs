@@ -17,9 +17,4 @@ export class ForgetPasswordDto {
   @IsOptional()
   @IsString({ message: 'code must be a string' })
   code: string;
-
-  @IsOptional()
-  @IsString({ message: 'code must be a string' })
-  @MinLength(8, { message: 'newpass is at least 6 characters' })
-  newpass: string;
 }

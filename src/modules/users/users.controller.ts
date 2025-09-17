@@ -15,10 +15,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtUser } from 'src/modules/authen/auth.service';
-import { Roles } from 'src/modules/authen/decorator/roleGuard';
-import { RolesGuard } from 'src/modules/authen/passport/role.guard';
+import { RolesGuard } from 'src/common/passport/role.guard';
 import { ForgetPasswordDto } from '../authen/dto/forget-password.dto';
-import { Public } from '../authen/decorator/customizeGuard';
+import { Roles } from 'src/common/decorator/roleGuard';
+import { Public } from 'src/common/decorator/customizeGuard';
+import { Verify2faUserDto } from './dto/verify2fa.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -96,5 +97,20 @@ export class UsersController {
   @Get('verify-email')
   verifyEmail(@Query('token') token: string) {
     return this.usersService.verifyNewEmail(token);
+  }
+
+  @Post('generate/2fa')
+  turnOn2TA(@Req() req: { user: JwtUser }) {
+    const user = req.user;
+    return this.usersService.generate2FA(user._id);
+  }
+
+  @Post('verify/2fa')
+  verifyOtp(
+    @Req() req: { user: JwtUser },
+    @Body() verify2fa: Verify2faUserDto,
+  ) {
+    const user = req.user;
+    return this.usersService.verify2FA(user._id, verify2fa);
   }
 }

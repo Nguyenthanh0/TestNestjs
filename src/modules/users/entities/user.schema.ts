@@ -39,6 +39,12 @@ export class User {
 
   @Prop({ type: Date, default: null })
   resetCodeExpire: Date | null;
+
+  @Prop()
+  twoFAsecret: string;
+
+  @Prop({ type: Boolean, defaule: false })
+  isTwoFAenabled: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
