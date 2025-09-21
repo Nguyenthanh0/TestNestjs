@@ -21,6 +21,7 @@ import { ForgetPasswordDto } from '../authen/dto/forget-password.dto';
 import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 import { Verify2faUserDto } from './dto/verify2fa.dto';
+import { AdminUpdateUserDto } from './dto/adminUpsteUser.dto';
 
 export interface changeEmailPayload {
   _id: string;
@@ -77,7 +78,37 @@ export class UsersService {
     return user;
   }
 
-  //hàm update info user
+  //hàm admin update info user
+  async updateUser(_id: string, updateUserDto: AdminUpdateUserDto) {
+    try {
+      const existedEmail = await this.userModel.findOne({
+        email: updateUserDto.email,
+      });
+      const existedUser = await this.userModel.findOne({
+        name: updateUserDto.name,
+      });
+
+      if (existedUser || existedEmail) {
+        throw new BadRequestException('Email or user name has already existed');
+      }
+      const user = await this.userModel.findById(_id);
+      if (!user) throw new NotFoundException('User not found');
+
+      const hashPassword = await hashPswHelper(updateUserDto.password);
+      updateUserDto.password = hashPassword;
+
+      await this.userModel.findByIdAndUpdate(user._id, updateUserDto, {
+        new: true,
+      });
+
+      return { message: 'update user successfully', data: user.email };
+    } catch (error) {
+      console.log('error', error);
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  //hàm user update info
   async update(_id: string, updateUserDto: UpdateUserDto) {
     try {
       const existedUser = await this.userModel.findOne({
@@ -108,25 +139,6 @@ export class UsersService {
   async remove(_id: string) {
     await this.userModel.deleteOne({ _id });
     return 'delete this user successfully';
-  }
-
-  async register(regisDto: RegisterUserDto) {
-    const existEmail = await this.checkEmail(regisDto.email);
-    if (existEmail) {
-      throw new BadRequestException('This email has already existed');
-    }
-    const existName = await this.userModel.findOne({ name: regisDto.name });
-    if (existName) {
-      throw new BadRequestException('This username has already existed');
-    }
-
-    const hassPwd = await hashPswHelper(regisDto.password);
-    const createUser = new this.userModel({
-      ...regisDto,
-      password: hassPwd,
-    });
-    const result = await createUser.save();
-    return { message: 'register successfully', data: result._id };
   }
 
   async changeEmail(_id: string, newemail: ForgetPasswordDto) {
@@ -227,8 +239,6 @@ export class UsersService {
     // console.log('Client token:', token);
     // console.log('Server generate:', authenticator.generate(user.twoFAsecret));
     // console.log(checkOtp);
-    console.log('Verify:', isValid);
-
     if (!isValid) {
       throw new UnauthorizedException('Invalid OTP');
     }
@@ -239,6 +249,4 @@ export class UsersService {
 
     return { message: '2FA enabled successfully' };
   }
-
-  
 }

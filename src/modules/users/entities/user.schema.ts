@@ -26,7 +26,7 @@ export class User {
   address: string;
 
   @Prop()
-  image: string;
+  avatar: string;
 
   @Prop({ enum: UserRole, default: UserRole.USER })
   role: UserRole;

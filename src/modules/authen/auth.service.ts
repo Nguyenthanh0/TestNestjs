@@ -22,7 +22,9 @@ import { authenticator } from 'otplib';
 
 export interface JwtUser {
   _id: string;
+  identifier: string;
   email: string;
+  name: string;
   role: UserRole;
   isTwoFAenabled: boolean;
 }
@@ -41,14 +43,31 @@ export class AuthService {
   ) {}
 
   async regiter(regisDto: RegisterUserDto) {
-    const register = await this.usersService.register(regisDto);
-    return 'Register successfully';
+    const existEmail = await this.userModel.findOne({ email: regisDto.email });
+    if (existEmail) {
+      throw new BadRequestException('This email has already existed');
+    }
+    const existName = await this.userModel.findOne({ name: regisDto.name });
+    if (existName) {
+      throw new BadRequestException('This username has already existed');
+    }
+
+    const hassPwd = await hashPswHelper(regisDto.password);
+    const createUser = new this.userModel({
+      ...regisDto,
+      password: hassPwd,
+    });
+    const result = await createUser.save();
+    return { message: 'register successfully', data: result.email };
   }
 
-  async validateUser(email: string, password: string) {
-    const user = await this.userModel.findOne({ email: email });
+  async validateUser(identifier: string, password: string) {
+    const isEmail = /\S+@\S+\.\S+/.test(identifier);
+    const user = isEmail
+      ? await this.userModel.findOne({ email: identifier }).exec()
+      : await this.userModel.findOne({ name: identifier }).exec();
     if (!user) {
-      throw new HttpException('email not found', HttpStatus.NOT_FOUND);
+      throw new HttpException('user not found', HttpStatus.NOT_FOUND);
     }
     const checkPasswd = await comparePswHelper(password, user.password);
     if (!checkPasswd) {

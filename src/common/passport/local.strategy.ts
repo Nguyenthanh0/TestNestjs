@@ -8,11 +8,14 @@ import { LoginUserDto } from 'src/modules/authen/dto/login.dto';
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private authService: AuthService) {
-    super({ usernameField: 'email' });
+    super({ usernameField: 'identifier' });
   }
 
-  async validate(email: string, password: string) {
-    const user = (await this.authService.validateUser(email, password)) as User;
+  async validate(identifier: string, password: string) {
+    const user = (await this.authService.validateUser(
+      identifier,
+      password,
+    )) as User;
     if (!user) {
       throw new UnauthorizedException('User or password incorrect');
     }

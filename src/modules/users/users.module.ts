@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './entities/user.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { AdminController } from './admin.controller';
 
 @Module({
   exports: [MongooseModule, UsersService],
@@ -21,7 +22,7 @@ import { ConfigService } from '@nestjs/config';
       inject: [ConfigService],
     }),
   ],
-  controllers: [UsersController],
+  controllers: [UsersController, AdminController],
   providers: [UsersService],
 })
 export class UsersModule {}
