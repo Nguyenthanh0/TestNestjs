@@ -2,8 +2,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationError } from 'class-validator';
 
 // main.ts
 async function bootstrap(): Promise<void> {
@@ -12,6 +13,15 @@ async function bootstrap(): Promise<void> {
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
+      // exceptionFactory: (validationErrors: ValidationError[] = []) => {
+      //   return new BadRequestException(
+      //     validationErrors.map((error) => ({
+      //       [error.property]: error.constraints
+      //         ? Object.values(error.constraints)[0]
+      //         : '',
+      //     })),
+      //   );
+      // },
     }),
   );
   const config = new DocumentBuilder()

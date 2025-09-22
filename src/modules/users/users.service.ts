@@ -4,11 +4,12 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from './schemas/user.schema';
+import { User } from './entities/user.schema';
 import { Model } from 'mongoose';
 import { hashPswHelper } from 'src/ulti/helper';
 import { RegisterUserDto } from 'src/modules/authen/dto/register.dto';
@@ -17,6 +18,10 @@ import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
 import { JwtUser } from '../authen/auth.service';
 import { ForgetPasswordDto } from '../authen/dto/forget-password.dto';
+import { authenticator } from 'otplib';
+import qrcode from 'qrcode';
+import { Verify2faUserDto } from './dto/verify2fa.dto';
+import { AdminUpdateUserDto } from './dto/adminUpsteUser.dto';
 
 export interface changeEmailPayload {
   _id: string;
@@ -73,7 +78,37 @@ export class UsersService {
     return user;
   }
 
-  //hàm update info user
+  //hàm admin update info user
+  async updateUser(_id: string, updateUserDto: AdminUpdateUserDto) {
+    try {
+      const existedEmail = await this.userModel.findOne({
+        email: updateUserDto.email,
+      });
+      const existedUser = await this.userModel.findOne({
+        name: updateUserDto.name,
+      });
+
+      if (existedUser || existedEmail) {
+        throw new BadRequestException('Email or user name has already existed');
+      }
+      const user = await this.userModel.findById(_id);
+      if (!user) throw new NotFoundException('User not found');
+
+      const hashPassword = await hashPswHelper(updateUserDto.password);
+      updateUserDto.password = hashPassword;
+
+      await this.userModel.findByIdAndUpdate(user._id, updateUserDto, {
+        new: true,
+      });
+
+      return { message: 'update user successfully', data: user.email };
+    } catch (error) {
+      console.log('error', error);
+      throw new InternalServerErrorException(error);
+    }
+  }
+
+  //hàm user update info
   async update(_id: string, updateUserDto: UpdateUserDto) {
     try {
       const existedUser = await this.userModel.findOne({
@@ -93,7 +128,7 @@ export class UsersService {
         throw new NotFoundException('User not found');
       }
 
-      return { message: 'update user successfully', data: result };
+      return { message: 'update user successfully', data: result.email };
     } catch (error) {
       console.log('error', error);
       throw new InternalServerErrorException(error);
@@ -104,25 +139,6 @@ export class UsersService {
   async remove(_id: string) {
     await this.userModel.deleteOne({ _id });
     return 'delete this user successfully';
-  }
-
-  async register(regisDto: RegisterUserDto) {
-    const existEmail = await this.checkEmail(regisDto.email);
-    if (existEmail) {
-      throw new BadRequestException('This email has already existed');
-    }
-    const existName = await this.userModel.findOne({ name: regisDto.name });
-    if (existName) {
-      throw new BadRequestException('This username has already existed');
-    }
-
-    const hassPwd = await hashPswHelper(regisDto.password);
-    const createUser = new this.userModel({
-      ...regisDto,
-      password: hassPwd,
-    });
-    const result = await createUser.save();
-    return { message: 'register successfully', data: result._id };
   }
 
   async changeEmail(_id: string, newemail: ForgetPasswordDto) {
@@ -178,5 +194,59 @@ export class UsersService {
         console.error('Verify error:', error);
       }
     }
+  }
+  async generate2FA(_id: string) {
+    const user = await this.userModel.findById({ _id });
+    if (!user) {
+      throw new NotFoundException('user not found');
+    }
+    const secret = authenticator.generateSecret();
+
+    // Tạo otpauth URL (Google Authenticator đọc QR này)
+    const issuer = this.configService.get<string>('TWOFA_ISSUER');
+    if (!issuer) {
+      throw new Error('TWOFA_ISSUER environment variable is not set');
+    }
+    const otpauthUrl = authenticator.keyuri(
+      user.email,
+      issuer, // tên app
+      secret,
+    );
+
+    // Convert sang QR code
+    const qrCodeDataUrl = await qrcode.toDataURL(otpauthUrl);
+
+    // Lưu secret tạm cho user
+    await this.userModel.findByIdAndUpdate({ _id }, { twoFAsecret: secret });
+    // user.twoFAsecret = secret;
+    // await user.save();
+
+    return { qrUrl: qrCodeDataUrl, otpUrl: otpauthUrl };
+  }
+
+  // Step 2: Verify OTP khi enable 2FA
+  async verify2FA(_id: string, verify2fa: Verify2faUserDto) {
+    const user = await this.userModel.findById({ _id });
+    if (!user || !user.twoFAsecret) {
+      throw new UnauthorizedException('2FA not initialized');
+    }
+
+    const token = verify2fa.code;
+    const secret = user.twoFAsecret;
+    const isValid = authenticator.verify({ token, secret });
+    // const checkOtp = authenticator.check(token, secret);
+    // console.log('Secret:', user.twoFAsecret);
+    // console.log('Client token:', token);
+    // console.log('Server generate:', authenticator.generate(user.twoFAsecret));
+    // console.log(checkOtp);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid OTP');
+    }
+
+    // Nếu đúng thì bật 2FA
+    user.isTwoFAenabled = true;
+    await user.save();
+
+    return { message: '2FA enabled successfully' };
   }
 }

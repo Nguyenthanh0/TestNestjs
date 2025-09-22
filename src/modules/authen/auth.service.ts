@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -8,7 +9,7 @@ import {
 import { comparePswHelper, hashPswHelper } from 'src/ulti/helper';
 import { JwtService } from '@nestjs/jwt';
 import { Model } from 'mongoose';
-import { User, UserRole } from 'src/modules/users/schemas/user.schema';
+import { User, UserRole } from 'src/modules/users/entities/user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { UsersService } from 'src/modules/users/users.service';
 import { RegisterUserDto } from './dto/register.dto';
@@ -16,11 +17,16 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { ForgetPasswordDto } from './dto/forget-password.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '@nestjs/config';
+import { Verify2faUserDto } from '../users/dto/verify2fa.dto';
+import { authenticator } from 'otplib';
 
 export interface JwtUser {
   _id: string;
+  identifier: string;
+  email: string;
   name: string;
   role: UserRole;
+  isTwoFAenabled: boolean;
 }
 
 export interface resetPayload {
@@ -37,14 +43,31 @@ export class AuthService {
   ) {}
 
   async regiter(regisDto: RegisterUserDto) {
-    const register = await this.usersService.register(regisDto);
-    return 'Register successfully';
+    const existEmail = await this.userModel.findOne({ email: regisDto.email });
+    if (existEmail) {
+      throw new BadRequestException('This email has already existed');
+    }
+    const existName = await this.userModel.findOne({ name: regisDto.name });
+    if (existName) {
+      throw new BadRequestException('This username has already existed');
+    }
+
+    const hassPwd = await hashPswHelper(regisDto.password);
+    const createUser = new this.userModel({
+      ...regisDto,
+      password: hassPwd,
+    });
+    const result = await createUser.save();
+    return { message: 'register successfully', data: result.email };
   }
 
-  async validateUser(username: string, password: string): Promise<any> {
-    const user = await this.userModel.findOne({ name: username });
+  async validateUser(identifier: string, password: string) {
+    const isEmail = /\S+@\S+\.\S+/.test(identifier);
+    const user = isEmail
+      ? await this.userModel.findOne({ email: identifier }).exec()
+      : await this.userModel.findOne({ name: identifier }).exec();
     if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      throw new HttpException('user not found', HttpStatus.NOT_FOUND);
     }
     const checkPasswd = await comparePswHelper(password, user.password);
     if (!checkPasswd) {
@@ -55,9 +78,58 @@ export class AuthService {
 
   async login(user: JwtUser) {
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Email or password invalid ');
     }
-    const payload = { username: user.name, sub: user._id, role: user.role };
+
+    const payload = {
+      email: user.email,
+      sub: user._id,
+      role: user.role,
+    };
+    if (!user.isTwoFAenabled) {
+      return {
+        message: 'Login successfully',
+        access_token: this.jwtService.sign(payload),
+      };
+    } else {
+      const twoFaPayload = {
+        email: user.email,
+      };
+      return {
+        message: '2FA is requied',
+        twoFARequired: true,
+        temp_token: this.jwtService.sign(twoFaPayload, {
+          expiresIn: this.configSv.get('TEMP_TOKEN_EXPIRED'),
+        }),
+      };
+    }
+  }
+
+  async loginWith2FA(tempToken: string, code: string) {
+    const twoFaPayload: Partial<JwtUser> = this.jwtService.verify(tempToken);
+    if (!twoFaPayload) {
+      throw new BadRequestException('invalid token');
+    }
+    const user = await this.userModel.findOne({ email: twoFaPayload.email });
+
+    if (!user || !user.twoFAsecret) {
+      throw new UnauthorizedException('2FA not initialized');
+    }
+    const isValid = authenticator.verify({
+      token: code,
+      secret: user.twoFAsecret,
+    });
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid OTP');
+    }
+
+    const payload = {
+      email: user.email,
+      sub: user._id,
+      role: user.role,
+    };
+
     return {
       message: 'Login successfully',
       access_token: this.jwtService.sign(payload),

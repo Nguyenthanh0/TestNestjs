@@ -6,8 +6,8 @@ services:
     ports:
       - '27017:27017'
     environment:
-      MONGO_INITDB_ROOT_USERNAME: nguyenthanh0399545598
-      MONGO_INITDB_ROOT_PASSWORD: 8e9resHOxNvpj1Q0
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongo-data:/data/db # sửa lại thành mongo-data
   mailhog:
@@ -17,8 +17,36 @@ services:
     ports:
       - '1025:1025' # SMTP server
       - '8025:8025' # Web UI
-
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: always
+    ports:
+      - '8081:8081'
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_ROOT_ACCOUNT} # optional để login UI
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_ROOT_ACCOUNT}
+    depends_on:
+      - mongodb
+  minio:
+    image: minio/minio
+    container_name: minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
 volumes:
   mongo-data:
     external: true
     name: post_mongo-data
+  minio-data:

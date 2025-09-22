@@ -7,8 +7,8 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/authen/auth.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { RolesGuard } from './modules/authen/passport/role.guard';
-import { JwtAuthGuard } from './modules/authen/passport/jwt-auth.guard';
+import { RolesGuard } from './common/passport/role.guard';
+import { JwtAuthGuard } from './common/passport/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
 
 @Module({

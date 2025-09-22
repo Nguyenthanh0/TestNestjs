@@ -8,7 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { UserRole } from '../schemas/user.schema';
+import { UserRole } from '../entities/user.schema';
 
 export class CreateUserDto {
   @IsDefined({ message: 'Name is required' })

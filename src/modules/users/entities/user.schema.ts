@@ -26,7 +26,7 @@ export class User {
   address: string;
 
   @Prop()
-  image: string;
+  avatar: string;
 
   @Prop({ enum: UserRole, default: UserRole.USER })
   role: UserRole;
@@ -39,6 +39,12 @@ export class User {
 
   @Prop({ type: Date, default: null })
   resetCodeExpire: Date | null;
+
+  @Prop()
+  twoFAsecret: string;
+
+  @Prop({ type: Boolean, defaule: false })
+  isTwoFAenabled: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -1,13 +1,27 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
-export class UpdateUserDto {
+export class AdminUpdateUserDto {
+  @IsOptional()
+  @IsEmail()
+  @IsString({ message: 'email must be a string' })
+  email: string;
+
+  @IsOptional()
+  @IsString({ message: 'password must be a string' })
+  password: string;
+
   @IsOptional()
   @IsString({ message: 'Name must be a string' })
   @ApiProperty() // gợi ý kiểu dữ liệu truyền vào field
   name: string;
 
-  // Optional field, có thể không gửi
   @IsOptional()
   @IsString({ message: 'Phone must be a string' })
   @MinLength(10, { message: 'phone must have 10 character' })
