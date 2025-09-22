@@ -1,6 +1,8 @@
-import { IsNotEmpty } from 'class-validator';
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -12,16 +14,16 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './entities/user.schema';
 import { Model } from 'mongoose';
 import { hashPswHelper } from 'src/ulti/helper';
-import { RegisterUserDto } from 'src/modules/authen/dto/register.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
-import { JwtUser } from '../authen/auth.service';
 import { ForgetPasswordDto } from '../authen/dto/forget-password.dto';
 import { authenticator } from 'otplib';
 import qrcode from 'qrcode';
 import { Verify2faUserDto } from './dto/verify2fa.dto';
 import { AdminUpdateUserDto } from './dto/adminUpsteUser.dto';
+import { Client } from 'minio';
+import sharp from 'sharp';
 
 export interface changeEmailPayload {
   _id: string;
@@ -34,6 +36,7 @@ export class UsersService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private readonly mailerService: MailerService,
+    @Inject('MINIO_CLIENT') private readonly minioClient: Client,
   ) {}
 
   //hàm check email
@@ -248,5 +251,59 @@ export class UsersService {
     await user.save();
 
     return { message: '2FA enabled successfully' };
+  }
+  private readonly bucketName = 'user-avatars';
+
+  async uploadAvatar(file: Express.Multer.File, _id: string) {
+    if (!file) {
+      throw new HttpException('File không tồn tại', HttpStatus.BAD_REQUEST);
+    }
+
+    const user = await this.userModel.findById(_id);
+    if (!user) {
+      throw new BadRequestException('user not fond');
+    }
+
+    //check xem user đã có avatar chưa, nếu đổi avatar thì xoá avatar cũ
+    if (user.avatar) {
+      const oldFilename = user.avatar.split('/').pop();
+      if (!oldFilename) throw new NotFoundException('old fileName not found');
+      try {
+        await this.minioClient.removeObject(this.bucketName, oldFilename);
+      } catch (error) {
+        throw new BadRequestException('delete old avatar unsuccessfully');
+      }
+    }
+
+    // Kiểm tra bucket, nếu chưa có thì tạo
+    const isBucketExist = await this.minioClient.bucketExists(this.bucketName);
+    if (!isBucketExist) {
+      await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
+    }
+
+    //nén ảnh, giảm dung lượng của ảnh
+    const resizedBuffer = await sharp(file.buffer)
+      .resize(300, 300, { fit: 'cover' }) // scale về 300x300
+      .jpeg({ quality: 80 }) // nén về jpeg chất lượng 80%
+      .toBuffer();
+
+    // Tạo tên file duy nhất
+    const fileName = `${_id}-${Date.now()}-${file.originalname}`;
+
+    // Upload file lên MinIO
+    await this.minioClient.putObject(
+      this.bucketName,
+      fileName,
+      resizedBuffer,
+      resizedBuffer.length,
+      { 'Content-Type': file.mimetype },
+    );
+
+    // Tạo file Url => db
+    const fileUrl = `${this.configService.get<string>('MINIO_ENDPOINT')}:${this.configService.get<string>('MINIO_PORT')}/${this.bucketName}/${fileName}`;
+
+    await this.userModel.findByIdAndUpdate(_id, { avatar: fileUrl });
+
+    return { message: 'upload avatar successfully', url: fileUrl };
   }
 }
