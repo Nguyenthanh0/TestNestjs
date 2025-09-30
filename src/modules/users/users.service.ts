@@ -68,7 +68,7 @@ export class UsersService {
     return { data: alluser };
   }
 
-  //hàm tìm user by idd
+  //hàm tìm user by id
   async findOne(_id: string) {
     return await this.userModel.findById({ _id });
   }

@@ -30,8 +30,9 @@ async function bootstrap(): Promise<void> {
     .setVersion('1.0')
     .addTag('Users')
     .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
   app.setGlobalPrefix('api', { exclude: [''] }); // route xuất phát với tiền tố api và trang chủ (root) thì không cần prefix api
   const configService = app.get(ConfigService);
   const port = Number(configService.get<string>('PORT'));
