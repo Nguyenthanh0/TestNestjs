@@ -8,18 +8,17 @@ import {
   Put,
   Query,
   Req,
-  UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtUser } from 'src/modules/authen/auth.service';
-import { RolesGuard } from 'src/common/passport/role.guard';
 import { ForgetPasswordDto } from '../authen/dto/forget-password.dto';
-import { Roles } from 'src/common/decorator/roleGuard';
 import { Public } from 'src/common/decorator/customizeGuard';
 import { Verify2faUserDto } from './dto/verify2fa.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Users')
 @Controller('users')
@@ -69,5 +68,14 @@ export class UsersController {
   ) {
     const user = req.user;
     return this.usersService.verify2FA(user._id, verify2fa);
+  }
+
+  @Post('upload-avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAvatar(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: { user: JwtUser },
+  ) {
+    return this.usersService.uploadAvatar(file, req.user._id);
   }
 }
