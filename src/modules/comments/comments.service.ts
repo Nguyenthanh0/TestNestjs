@@ -6,7 +6,7 @@ import {
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Post } from '../post/entities/post.schema';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { Comment } from './entities/comment.schema';
 
 @Injectable()
@@ -65,5 +65,51 @@ export class CommentsService {
     if (!removeCmt) throw new NotFoundException('Comment not found');
     await this.commentModel.deleteOne(removeCmt._id);
     return { message: 'Delete cmt successfully', comment: removeCmt };
+  }
+
+  // get post that user commented
+  async getCommentedPosts(userId: string) {
+    const posts = await this.commentModel.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      {
+        $lookup: {
+          from: 'posts',
+          localField: 'postId',
+          foreignField: '_id',
+          as: 'posts',
+          pipeline: [
+            { $sort: { createdAt: -1 } },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'userId',
+                foreignField: '_id',
+                as: 'userInfo',
+              },
+            },
+            { $unwind: '$userInfo' },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                content: 1,
+                auth: '$userInfo.name',
+              },
+            },
+          ],
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $project: {
+          createdAt: 1,
+          content: 1,
+          posts: '$posts',
+        },
+      },
+    ]);
+    return { message: 'get posts that user commented successfully', posts };
   }
 }

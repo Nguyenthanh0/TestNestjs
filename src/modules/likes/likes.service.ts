@@ -51,4 +51,49 @@ export class LikesService {
     ]);
     return { message: 'get users liked post successfully', getUsersLiked };
   }
+
+  // user get post that user liked
+  getLikedPosts(userId: string) {
+    const posts = this.likeModule.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      {
+        $lookup: {
+          from: 'posts',
+          localField: 'postId',
+          foreignField: '_id',
+          as: 'posts',
+          pipeline: [
+            { $sort: { createdAt: -1 } },
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'userId',
+                foreignField: '_id',
+                as: 'userInfo',
+              },
+            },
+            { $unwind: '$userInfo' },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                content: 1,
+                auth: '$userInfo.name',
+              },
+            },
+          ],
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $project: {
+          createdAt: 1,
+          post: '$posts',
+        },
+      },
+    ]);
+    return posts;
+  }
 }

@@ -9,18 +9,18 @@ import { Roles } from 'src/common/decorator/roleGuard';
 export class AdminPostController {
   constructor(private readonly postService: PostService) {}
 
-  // @Get()
-  // findAll() {
-  //   return this.postService.findAll();
-  // }
-
   @Get()
-  findOne() {
+  findAll() {
     return this.postService.findAll();
   }
 
   @Delete(':postId')
   delete(@Param('postId') postId: string) {
     return this.postService.delete(postId);
+  }
+
+  @Get('soft-deleted')
+  getAllSoftDeleted() {
+    return this.postService.getAllSoftDelete();
   }
 }

@@ -17,14 +17,19 @@ import { JwtUser } from '../authen/auth.service';
 export class PostController {
   constructor(private readonly postService: PostService) {}
 
-  // Role User
-  @Post('me')
+  @Post('')
   create(@Body() createPostDto: CreatePostDto, @Req() req: { user: JwtUser }) {
     const _id = req.user._id;
     return this.postService.create(_id, createPostDto);
   }
 
-  @Get('user/me')
+  @Get('find/:id')
+  findOne(@Param('id') id: string) {
+    return this.postService.findOne(id);
+  }
+
+  // Role User
+  @Get('me')
   getAllPosts(@Req() req: { user: JwtUser }) {
     const _id = req.user._id;
     return this.postService.meFindAll(_id);
@@ -50,5 +55,21 @@ export class PostController {
   deletePOst(@Req() req: { user: JwtUser }, @Param('id') id: string) {
     const _id = req.user._id;
     return this.postService.softDelete(_id, id);
+  }
+
+  @Post('me/:id')
+  restorePost(@Req() req: { user: JwtUser }, @Param('id') id: string) {
+    const userID = req.user._id;
+    return this.postService.restore(userID, id);
+  }
+
+  // user get liked / commented post
+  @Get('me/liked-posts')
+  getPostLikedByMe(@Req() req: { user: JwtUser }) {
+    return this.postService.getPostLiked(req.user._id);
+  }
+  @Get('me/commented-posts')
+  getPostCommentedByMe(@Req() req: { user: JwtUser }) {
+    return this.postService.getPostCommented(req.user._id);
   }
 }
