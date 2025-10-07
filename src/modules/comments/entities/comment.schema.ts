@@ -13,6 +13,12 @@ export class Comment {
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true })
   postId: string;
+
+  @Prop({ type: Boolean, default: false })
+  isDeleted: boolean;
+
+  @Prop()
+  deletedAt: Date;
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);

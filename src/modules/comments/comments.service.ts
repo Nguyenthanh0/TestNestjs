@@ -8,12 +8,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Post } from '../post/entities/post.schema';
 import mongoose, { Model } from 'mongoose';
 import { Comment } from './entities/comment.schema';
+import { CommentRepository } from './comments.repository';
 
 @Injectable()
 export class CommentsService {
   constructor(
     @InjectModel(Post.name) private readonly postModel: Model<Post>,
     @InjectModel(Comment.name) private readonly commentModel: Model<Comment>,
+    private readonly commentRepo: CommentRepository,
   ) {}
   async create(
     userId: string,
@@ -32,84 +34,81 @@ export class CommentsService {
     return { message: 'comment successfully', comment };
   }
 
-  async findByPost(id: string) {
-    const post = await this.postModel.findById(id);
+  async findByPost(id: string, page: number = 1, limit: number = 10) {
+    const post = await this.postModel.findOne({ _id: id, isDeleted: false });
     if (!post) throw new NotFoundException('Post not found');
+    const skip = (page - 1) * limit;
     const comments = await this.commentModel
       .find({ postId: post._id })
-      .populate('userId', 'name');
-    return { message: `get comments of post ${id} `, comments };
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} comment`;
+      .populate('userId', 'name')
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+    const totalComments = await this.commentModel.countDocuments({
+      postId: post._id,
+    });
+    const totalPages = Math.ceil(totalComments / limit);
+    return {
+      message: `get comments of post ${id} `,
+      currentPage: page,
+      totalPages,
+      totalComments,
+      comments,
+    };
   }
 
   async remove(userId: string, id: string) {
-    const comment = await this.commentModel.findById(id);
+    const comment = await this.commentModel.findOne({
+      _id: id,
+      userId: userId,
+      isDeleted: false,
+    });
     if (!comment) throw new NotFoundException('Comment not found');
-    if (comment.userId.toString() !== userId)
-      throw new ForbiddenException('You cant not delete this comment');
-    const post = await this.postModel.findById(comment.postId);
-    if (!post) throw new NotFoundException('Post not found');
-    await this.commentModel.deleteOne(comment._id);
+    await this.commentModel.findByIdAndUpdate(comment._id, {
+      isDeleted: true,
+      deletedAt: new Date(),
+    });
     return {
-      message: ' remove comment successsfully',
+      message: ' soft delete comment successsfully',
       comment: comment.content,
     };
   }
+
   async delete(id: string) {
-    const removeCmt = await this.commentModel
-      .findById(id)
-      .populate('userId', 'name');
+    const removeCmt = await this.commentModel.findByIdAndUpdate(id, {
+      isDeleted: true,
+      deletedAt: new Date(),
+    });
     if (!removeCmt) throw new NotFoundException('Comment not found');
-    await this.commentModel.deleteOne(removeCmt._id);
-    return { message: 'Delete cmt successfully', comment: removeCmt };
+    return {
+      message: 'Soft delete cmt successfully',
+      comment: removeCmt.content,
+    };
+  }
+
+  // restore cmt
+  async restore(id: string) {
+    const restoreCmt = await this.commentModel.findByIdAndUpdate(id, {
+      isDeleted: false,
+      deletedAt: null,
+    });
+    return restoreCmt?.content;
   }
 
   // get post that user commented
-  async getCommentedPosts(userId: string) {
-    const posts = await this.commentModel.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-      {
-        $lookup: {
-          from: 'posts',
-          localField: 'postId',
-          foreignField: '_id',
-          as: 'posts',
-          pipeline: [
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                title: 1,
-                content: 1,
-                auth: '$userInfo.name',
-              },
-            },
-          ],
-        },
-      },
-      {
-        $sort: { createdAt: -1 },
-      },
-      {
-        $project: {
-          createdAt: 1,
-          content: 1,
-          posts: '$posts',
-        },
-      },
-    ]);
-    return { message: 'get posts that user commented successfully', posts };
+  async getCommentedPosts(userId: string, page: number) {
+    const limit = 10;
+    const totalPosts = await this.commentModel.countDocuments({
+      userId: userId,
+    });
+    const totalPages = Math.ceil(totalPosts / limit);
+    const posts = await this.commentRepo.getCommentedPosts(userId, page);
+    return {
+      message: 'get posts commented by me successfully',
+      currentPage: page,
+      totalPages,
+      totalPosts,
+      posts,
+    };
   }
 }

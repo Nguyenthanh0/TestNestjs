@@ -13,6 +13,7 @@ import { Post } from './entities/post.schema';
 import dayjs from 'dayjs';
 import { LikesService } from '../likes/likes.service';
 import { CommentsService } from '../comments/comments.service';
+import { PostRepository } from './post.repository';
 
 export interface postInterface {
   _id: string;
@@ -30,6 +31,7 @@ export class PostService {
     private readonly userService: UsersService,
     private readonly likeService: LikesService,
     private readonly commentService: CommentsService,
+    private readonly postRepo: PostRepository,
     @InjectModel(Post.name) private postModel: Model<Post>,
   ) {}
 
@@ -43,294 +45,90 @@ export class PostService {
     const createPost = await this.postModel.create({
       ...createPostDto,
       userId: _id,
-      createdAt: dayjs().toDate(),
+      author: { name: user.name, avatar: user.avatar },
     });
 
     return { message: 'create Post successfully', post: createPost };
   }
 
   //find one
-  async findOne(id: string) {
-    const post = await this.postModel.aggregate<postInterface>([
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      { $unwind: '$userInfo' },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $limit: 2 },
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                auth: '$userInfo.name',
-                content: 1,
-                createdAt: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $addFields: { likeCount: { $size: '$likes' } },
-      },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          content: 1,
-          auth: '$userInfo.name',
-          likeCount: '$likeCount',
-          recentComment: '$comments',
-        },
-      },
-    ]);
+  async getPost(id: string) {
+    const post = await this.postRepo.GetPost(id);
     if (!post) throw new NotFoundException('Post not found');
-    return post;
+    return { message: 'get post successfully', post };
   }
 
   // get my posts
-  async meFindAll(_id: string) {
+  async meFindAll(_id: string, page: number = 1) {
     const user = await this.userService.findOne(_id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const getMyPosts = await this.postModel.aggregate<postInterface>([
-      { $match: { userId: new mongoose.Types.ObjectId(user._id) } },
-      { $sort: { createdAt: -1 } },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $limit: 2 },
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                auth: '$userInfo.name',
-                content: 1,
-                createdAt: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $addFields: { likeCount: { $size: '$likes' } },
-      },
-      {
-        $project: {
-          postId: 1,
-          title: 1,
-          content: 1,
-          likeCount: '$likeCount',
-          recentComment: '$comments',
-        },
-      },
-    ]);
+    const limit = 10;
+    const totalPosts = await this.postModel.countDocuments({
+      userId: user._id,
+      isDeleted: false,
+    });
+    const totalPage = Math.ceil(totalPosts / limit);
 
-    return { message: `all posts of ${user.name} `, getMyPosts };
+    const getMyPosts = await this.postRepo.meFindAll(_id, page);
+
+    return {
+      message: `all posts of ${user.name} `,
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      getMyPosts,
+    };
   }
 
   // get posts is softDelete
-  async getSoftDelete(_id: string) {
+  async getSoftDelete(_id: string, page: number = 1) {
     const user = await this.userService.findOne(_id);
     if (!user) throw new NotFoundException('User not found');
-    const posts = await this.postModel.find({
+    const limit = 10;
+    const skip = (page - 1) * limit;
+    const totalPosts = await this.postModel.countDocuments({
       userId: user._id,
+      isDeleted: false,
+    });
+    const totalPage = Math.ceil(totalPosts / limit);
+    const posts = await this.postModel
+      .find({
+        userId: user._id,
+        isDeleted: true,
+      })
+      .skip(skip)
+      .limit(limit);
+    return {
+      message: 'get softDelete posts successfully ',
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      posts,
+    };
+  }
+
+  async getAllSoftDelete(page: number = 1) {
+    const limit = 10;
+    const totalPosts = await this.postModel.countDocuments({
       isDeleted: true,
     });
-    return { message: 'get softDelete posts successfully ', posts };
-  }
-
-  async getAllSoftDelete() {
-    const posts = await this.postModel.aggregate<postInterface>([
-      { $match: { isDeleted: true } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      { $unwind: '$userInfo' },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $limit: 2 },
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                auth: '$userInfo.name',
-                content: 1,
-                createdAt: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $addFields: { likeCount: { $size: '$likes' } },
-      },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          content: 1,
-          auth: '$userInfo.name',
-          likeCount: '$likeCount',
-          recentComment: '$comments',
-        },
-      },
-    ]);
-    return posts;
-  }
-
-  async findAll() {
-    const posts = await this.postModel.aggregate<postInterface>([
-      { $match: { isDeleted: false } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      { $unwind: '$userInfo' },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $limit: 2 },
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                auth: '$userInfo.name',
-                content: 1,
-                createdAt: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $addFields: { likeCount: { $size: '$likes' } },
-      },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          content: 1,
-          auth: '$userInfo.name',
-          likeCount: '$likeCount',
-          recentComment: '$comments',
-        },
-      },
-    ]);
-    return posts;
+    const totalPage = Math.ceil(totalPosts / limit);
+    const posts = await this.postRepo.getAllSoftDelete(page);
+    return { currentPage: page, totalPage, totalPosts, posts };
   }
 
   // update post
   async update(_id: string, id: string, updatePostDto: UpdatePostDto) {
-    const post = await this.postModel.findById(id);
+    const post = await this.postModel.findOne({
+      _id: id,
+      userId: _id,
+      isDeleted: false,
+    });
     if (!post) throw new NotFoundException('Post not found');
-    if (post.userId.toString() !== _id) {
-      throw new ForbiddenException('You can not edit this post');
-    }
+
     Object.assign(post, updatePostDto);
     await post.save();
     return { message: 'update successfully', post };
@@ -376,448 +174,96 @@ export class PostService {
   }
 
   // ------ sort posts ----- ///
-  async newFeed(mode: 'day' | 'week' | 'month') {
-    let startDate: Date;
-    let label = '';
-
-    if (mode === 'day') {
-      startDate = dayjs().startOf('day').toDate();
-      label = 'day';
-    } else if (mode === 'week') {
-      startDate = dayjs().startOf('week').toDate();
-      label = 'week';
-    } else {
-      startDate = dayjs().startOf('month').toDate();
-      label = 'month';
-    }
-
-    const posts = await this.postModel.aggregate<postInterface>([
-      { $match: { isDeleted: false } },
-
-      { $limit: 10 },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $sort: { createdAt: -1 } },
-            { $limit: 2 },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            {
-              $project: {
-                _id: 1,
-                content: 1,
-                createdAt: 1,
-                auth: '$userInfo.name',
-              },
-            },
-          ],
-        },
-      },
-      {
-        $unwind: '$userInfo',
-      },
-      {
-        $addFields: {
-          likes: {
-            $filter: {
-              input: '$likes',
-              as: 'like',
-              cond: { $gte: ['$$like.createdAt', startDate] },
-            },
-          },
-        },
-      },
-      {
-        $addFields: {
-          comments: {
-            $filter: {
-              input: '$comments',
-              as: 'comment',
-              cond: { $gte: ['$$comment.createdAt', startDate] },
-            },
-          },
-        },
-      },
-      {
-        $addFields: {
-          likeCount: { $size: '$likes' },
-          commentCount: { $size: '$comments' },
-        },
-      },
-      {
-        $addFields: {
-          mostInteraction: {
-            $add: ['$likeCount', '$commentCount'],
-          },
-        },
-      },
-
-      { $sort: { mostInteraction: -1 } },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          auth: '$userInfo.name',
-          likes: '$likeCount',
-          comments: '$commentCount',
-          recentComments: '$comments',
-        },
-      },
-    ]);
-
-    return { message: `newfeed get by ${label}`, posts };
+  async newFeed(mode: 'day' | 'week' | 'month', page: number = 1) {
+    const limit = 10;
+    const totalPosts = await this.postModel.countDocuments({
+      isDeleted: false,
+    });
+    const totalPage = Math.ceil(totalPosts / limit);
+    const posts = await this.postRepo.newFeed(mode, page);
+    return {
+      message: 'get newfeed successfully',
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      posts,
+    };
   }
-  async getLatest() {
-    const posts = await this.postModel.aggregate<postInterface>([
-      { $match: { isDeleted: false } },
-      { $sort: { createdAt: -1 } },
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      {
-        $unwind: '$userInfo',
-      },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $limit: 2 },
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                auth: '$userInfo.name',
-                content: 1,
-                createdAt: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $addFields: { likeCount: { $size: '$likes' } },
-      },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          auth: '$userInfo.name',
-          createdAt: 1,
-          recentComment: '$comments',
-          likes: '$likeCount',
-        },
-      },
-    ]);
 
-    return posts.map((e) => ({
-      ...e,
-      createdAt: dayjs(e.createdAt).format('DD/MM/YYYY HH:mm:ss'),
-    }));
+  // post mới nhất
+  async getLatest(page: number = 1) {
+    const limit = 10;
+    const totalPosts = await this.postModel.countDocuments({
+      isDeleted: false,
+    });
+    const totalPage = Math.ceil(totalPosts / limit);
+    const posts = await this.postRepo.getLatest(page);
+    return {
+      message: 'get latest posts successfully',
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      posts,
+    };
   }
 
   // post có nhiều like nhất
-  async getMostLikedPost() {
-    const posts = await this.postModel.aggregate<postInterface>([
-      { $match: { isDeleted: false } },
-
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $limit: 2 },
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                auth: '$userInfo.name',
-                content: 1,
-                createdAt: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      {
-        $unwind: '$userInfo',
-      },
-      {
-        $addFields: { likeCount: { $size: '$likes' } },
-      },
-      { $sort: { likeCount: -1 } },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          auth: '$userInfo.name',
-          likes: '$likeCount',
-          recentComent: '$comments',
-        },
-      },
-    ]);
-
-    return posts.map((e) => ({
-      ...e,
-      createdAt: dayjs(e.createdAt).format('DD/MM/YYYY HH:mm:ss'),
-    }));
+  async getMostLikedPost(page: number = 1) {
+    const limit = 10;
+    const totalPosts = await this.postModel.countDocuments({
+      isDeleted: false,
+    });
+    const totalPage = Math.ceil(totalPosts / limit);
+    const posts = await this.postRepo.getMostLikedPost(page);
+    return {
+      message: 'get most like posts successfully',
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      posts,
+    };
   }
 
-  async getRecentInteractions() {
-    const posts = await this.postModel.aggregate<postInterface>([
-      { $match: { isDeleted: false } },
-
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $limit: 2 },
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                auth: '$userInfo.name',
-                content: 1,
-                createdAt: 1,
-              },
-            },
-          ],
-        },
-      },
-      {
-        $unwind: '$userInfo',
-      },
-      {
-        $addFields: { likeCount: { $size: '$likes' } },
-      },
-      {
-        $addFields: {
-          lastLikeAt: { $max: '$likes.createdAt' },
-          lastCommentAt: { $max: '$comments.createdAt' },
-        }, // lấy ra thời gian lớn nhât (gần nhất)
-      },
-
-      {
-        $addFields: {
-          lastInteractionAt: {
-            $max: ['$lastLikeAt', '$lastCommentAt'],
-          },
-        },
-      },
-      { $sort: { lastInteractionAt: -1 } },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          auth: '$userInfo.name',
-          time_recenInteraction: '$lastInteractionAt',
-          likes: '$likeCount',
-          recentComment: '$comments',
-        },
-      },
-    ]);
-
-    return posts.map((e) => ({
-      ...e,
-      time_recenInteraction: dayjs(e.time_recenInteraction).format(
-        'DD/MM/YYYY HH:mm:ss',
-      ),
-    }));
+  // post mới được tương tác
+  async getRecentInteractions(page: number = 1) {
+    const limit = 10;
+    const totalPosts = await this.postModel.countDocuments({
+      isDeleted: false,
+    });
+    const totalPage = Math.ceil(totalPosts / limit);
+    const posts = await this.postRepo.getRecentInteractions(page);
+    return {
+      message: 'get recent-interaction posts successfully',
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      posts,
+    };
   }
 
-  async getMostInteractions() {
-    const posts = await this.postModel.aggregate<postInterface>([
-      { $match: { isDeleted: false } },
-
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: 'likes',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'likes',
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'userInfo',
-        },
-      },
-      {
-        $lookup: {
-          from: 'comments',
-          localField: '_id',
-          foreignField: 'postId',
-          as: 'comments',
-          pipeline: [
-            { $sort: { createdAt: -1 } },
-            { $limit: 2 },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            {
-              $project: {
-                _id: 1,
-                content: 1,
-                createdAt: 1,
-                auth: '$userInfo.name',
-              },
-            },
-          ],
-        },
-      },
-      {
-        $unwind: '$userInfo',
-      },
-      {
-        $addFields: {
-          likeCount: { $size: '$likes' },
-          commentCount: { $size: '$comments' },
-        },
-      },
-      {
-        $addFields: {
-          mostInteractionAt: { $add: ['$likeCount', '$commentCount'] },
-        },
-      },
-
-      { $sort: { mostInteractionAt: -1 } },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          auth: '$userInfo.name',
-          likes: '$likeCount',
-          comments: '$commentCount',
-          recentComment: '$comments',
-        },
-      },
-    ]);
-
-    return posts;
+  async getMostInteractions(page: number = 1) {
+    const limit = 10;
+    const totalPosts = await this.postModel.countDocuments({
+      isDeleted: false,
+    });
+    const totalPage = Math.ceil(totalPosts / limit);
+    const posts = await this.postRepo.getMostInteractions(page);
+    return {
+      message: 'get most interaction posts successfully',
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      posts,
+    };
   }
 
   // -----  user get posts that liked or commented
-  async getPostLiked(userId: string) {
-    return this.likeService.getLikedPosts(userId);
+  async getPostLiked(userId: string, page: number = 1) {
+    const post = await this.likeService.getLikedPosts(userId, page);
+    return post;
   }
-  async getPostCommented(userId: string) {
-    return this.commentService.getCommentedPosts(userId);
+  async getPostCommented(userId: string, page: number = 1) {
+    const posts = await this.commentService.getCommentedPosts(userId, page);
+    return posts;
   }
 }

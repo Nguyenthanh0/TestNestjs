@@ -20,27 +20,27 @@ export class NewFeedController {
 
   // sort by new posts
   @Get('latest-posts')
-  getLatest() {
-    return this.postService.getLatest();
+  getLatest(@Query('page') page: number) {
+    return this.postService.getLatest(page);
   }
 
   @Get('most-like')
-  getMostLiked() {
-    return this.postService.getMostLikedPost();
+  getMostLiked(@Query('page') page: number) {
+    return this.postService.getMostLikedPost(page);
   }
 
   @Get('recent-interaction')
-  getRecentInteraction() {
-    return this.postService.getRecentInteractions();
+  getRecentInteraction(@Query('page') page: number) {
+    return this.postService.getRecentInteractions(page);
   }
 
   @Get('most-interaction')
-  getMostInteraction() {
-    return this.postService.getMostInteractions();
+  getMostInteraction(@Query('page') page: number) {
+    return this.postService.getMostInteractions(page);
   }
 
   @Get('')
-  newfeed(@Query('mode') mode: Mode) {
-    return this.postService.newFeed(mode);
+  newfeed(@Query('mode') mode: Mode, @Query('page') page: number) {
+    return this.postService.newFeed(mode, page);
   }
 }

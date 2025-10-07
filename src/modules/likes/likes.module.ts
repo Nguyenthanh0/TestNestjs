@@ -4,6 +4,7 @@ import { LikesController } from './likes.controller';
 import { PostModule } from '../post/post.module';
 import { Like, LikeSchema } from './entities/like.schema';
 import { MongooseModule } from '@nestjs/mongoose';
+import { LikeRepository } from './like.repository';
 
 @Module({
   exports: [LikesService, MongooseModule],
@@ -12,6 +13,6 @@ import { MongooseModule } from '@nestjs/mongoose';
     MongooseModule.forFeature([{ name: Like.name, schema: LikeSchema }]),
   ],
   controllers: [LikesController],
-  providers: [LikesService],
+  providers: [LikesService, LikeRepository],
 })
 export class LikesModule {}

@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Post } from '../post/entities/post.schema';
 import mongoose, { Model, Mongoose } from 'mongoose';
 import { Like } from './entities/like.schema';
+import { LikeRepository } from './like.repository';
 
 @Injectable()
 export class LikesService {
   constructor(
     @InjectModel(Post.name) private readonly postModule: Model<Post>,
     @InjectModel(Like.name) private readonly likeModule: Model<Like>,
+    private readonly likeRepo: LikeRepository,
   ) {}
   async toggleLike(userId: string, postId: string) {
     const post = await this.postModule.findById(postId);
@@ -18,10 +20,14 @@ export class LikesService {
     if (existingLike) {
       await this.likeModule.deleteOne({ _id: existingLike._id });
       const totalLike = await this.likeModule.countDocuments({ postId });
+      post.totalLike = totalLike;
+      await post.save();
       return { message: 'Unlike post successfully', totalLike };
     } else {
       await this.likeModule.create({ userId, postId });
       const totalLike = await this.likeModule.countDocuments({ postId });
+      post.totalLike = totalLike;
+      await post.save();
       return { message: 'Like successfully', totalLike };
     }
   }
@@ -53,47 +59,17 @@ export class LikesService {
   }
 
   // user get post that user liked
-  getLikedPosts(userId: string) {
-    const posts = this.likeModule.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
-      {
-        $lookup: {
-          from: 'posts',
-          localField: 'postId',
-          foreignField: '_id',
-          as: 'posts',
-          pipeline: [
-            { $sort: { createdAt: -1 } },
-            {
-              $lookup: {
-                from: 'users',
-                localField: 'userId',
-                foreignField: '_id',
-                as: 'userInfo',
-              },
-            },
-            { $unwind: '$userInfo' },
-            {
-              $project: {
-                _id: 1,
-                title: 1,
-                content: 1,
-                auth: '$userInfo.name',
-              },
-            },
-          ],
-        },
-      },
-      {
-        $sort: { createdAt: -1 },
-      },
-      {
-        $project: {
-          createdAt: 1,
-          post: '$posts',
-        },
-      },
-    ]);
-    return posts;
+  async getLikedPosts(userId: string, page: number) {
+    const limit = 10;
+    const totalPosts = await this.likeModule.countDocuments({ userId: userId });
+    const totalPage = Math.ceil(totalPosts / limit);
+    const posts = await this.likeRepo.getLikedPosts(userId, page);
+    return {
+      message: 'get posts liked by me successfully',
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      posts,
+    };
   }
 }

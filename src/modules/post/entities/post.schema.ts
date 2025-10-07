@@ -19,6 +19,20 @@ export class Post {
 
   @Prop({ type: Date, default: null })
   deleteAt: Date;
+
+  @Prop({
+    type: {
+      name: String,
+      avatar: String,
+    },
+  })
+  author: {
+    name: string;
+    avatar: string;
+  };
+
+  @Prop({ type: Number, default: 0 })
+  totalLike: number;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);

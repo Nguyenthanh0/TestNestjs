@@ -8,6 +8,7 @@ import {
   Delete,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -32,22 +33,17 @@ export class CommentsController {
 
   // get comments theo bài post
   @Get(':id')
-  findAllCommnetsOfPost(@Param('id') id: string) {
-    return this.commentsService.findByPost(id);
+  findAllCommnetsOfPost(
+    @Param('id') id: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+  ) {
+    return this.commentsService.findByPost(id, page, limit);
   }
 
-  //user xoá cmt
-  @Delete('me/:id')
+  @Delete('user/:id')
   remove(@Param('id') id: string, @Req() req: { user: JwtUser }) {
     const userId = req.user._id;
     return this.commentsService.remove(userId, id);
-  }
-
-  //Admin
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
-  @Delete(':id')
-  removeCmt(@Param('id') id: string) {
-    return this.commentsService.delete(id);
   }
 }
