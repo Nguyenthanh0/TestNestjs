@@ -24,6 +24,7 @@ import { Verify2faUserDto } from './dto/verify2fa.dto';
 import { AdminUpdateUserDto } from './dto/adminUpsteUser.dto';
 import { Client } from 'minio';
 import sharp from 'sharp';
+import { Post } from '../post/entities/post.schema';
 
 export interface changeEmailPayload {
   _id: string;
@@ -33,6 +34,7 @@ export interface changeEmailPayload {
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Post.name) private readonly postModel: Model<Post>,
     private jwtService: JwtService,
     private configService: ConfigService,
     private readonly mailerService: MailerService,
@@ -68,7 +70,7 @@ export class UsersService {
     return { data: alluser };
   }
 
-  //hàm tìm user by idd
+  //hàm tìm user by id
   async findOne(_id: string) {
     return await this.userModel.findById({ _id });
   }
@@ -104,6 +106,15 @@ export class UsersService {
         new: true,
       });
 
+      await this.postModel.findOneAndUpdate(
+        { userId: user._id },
+        {
+          author: {
+            name: updateUserDto.name,
+          },
+        },
+      );
+
       return { message: 'update user successfully', data: user.email };
     } catch (error) {
       console.log('error', error);
@@ -130,7 +141,10 @@ export class UsersService {
       if (!result) {
         throw new NotFoundException('User not found');
       }
-
+      await this.postModel.updateMany(
+        { userId: result._id },
+        { $set: { 'author.name': updateUserDto.name } },
+      );
       return { message: 'update user successfully', data: result.email };
     } catch (error) {
       console.log('error', error);
@@ -303,6 +317,10 @@ export class UsersService {
     const fileUrl = `${this.configService.get<string>('MINIO_ENDPOINT')}:${this.configService.get<string>('MINIO_PORT')}/${this.bucketName}/${fileName}`;
 
     await this.userModel.findByIdAndUpdate(_id, { avatar: fileUrl });
+    await this.postModel.updateMany(
+      { userId: user._id },
+      { $set: { 'author.avatar': fileUrl } },
+    );
 
     return { message: 'upload avatar successfully', url: fileUrl };
   }

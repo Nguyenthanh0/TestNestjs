@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -7,6 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AdminController } from './admin.controller';
 import * as Minio from 'minio';
+import { PostModule } from '../post/post.module';
 
 @Module({
   exports: [MongooseModule, UsersService, 'MINIO_CLIENT'],
@@ -23,6 +24,7 @@ import * as Minio from 'minio';
       inject: [ConfigService],
     }),
     ConfigModule,
+    forwardRef(() => PostModule),
   ],
   controllers: [UsersController, AdminController],
   providers: [
