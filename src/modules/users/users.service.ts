@@ -11,7 +11,7 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from './entities/user.schema';
+import { User, UserDoc } from './entities/user.schema';
 import { Model } from 'mongoose';
 import { hashPswHelper } from 'src/ulti/helper';
 import { JwtService } from '@nestjs/jwt';
@@ -25,10 +25,18 @@ import { AdminUpdateUserDto } from './dto/adminUpsteUser.dto';
 import { Client } from 'minio';
 import sharp from 'sharp';
 import { Post } from '../post/entities/post.schema';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
+import { MailService } from '../mail/mail.service';
 
 export interface changeEmailPayload {
   _id: string;
   email: string;
+}
+export interface Caching {
+  _id: string;
+  name: string;
+  avatar: string;
 }
 @Injectable()
 export class UsersService {
@@ -39,6 +47,8 @@ export class UsersService {
     private configService: ConfigService,
     private readonly mailerService: MailerService,
     @Inject('MINIO_CLIENT') private readonly minioClient: Client,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly mailService: MailService,
   ) {}
 
   //hàm check email
@@ -72,7 +82,17 @@ export class UsersService {
 
   //hàm tìm user by id
   async findOne(_id: string) {
-    return await this.userModel.findById({ _id });
+    const cacheKey = `user_${_id}`;
+    const cached = await this.cacheManager.get<Caching>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const user = await this.userModel.findById(_id);
+    if (!user) throw new NotFoundException('User not found');
+    await this.cacheManager.set(cacheKey, user);
+
+    return user;
   }
 
   async findByName(name: string) {
@@ -106,14 +126,13 @@ export class UsersService {
         new: true,
       });
 
-      await this.postModel.findOneAndUpdate(
+      await this.postModel.updateMany(
         { userId: user._id },
-        {
-          author: {
-            name: updateUserDto.name,
-          },
-        },
+        { $set: { 'author.name': updateUserDto.name } },
       );
+
+      const cacheKey = `user_${_id}`;
+      await this.cacheManager.set(cacheKey, user);
 
       return { message: 'update user successfully', data: user.email };
     } catch (error) {
@@ -145,6 +164,10 @@ export class UsersService {
         { userId: result._id },
         { $set: { 'author.name': updateUserDto.name } },
       );
+
+      const cacheKey = `user_${_id}`;
+      await this.cacheManager.set(cacheKey, result);
+
       return { message: 'update user successfully', data: result.email };
     } catch (error) {
       console.log('error', error);
@@ -155,6 +178,7 @@ export class UsersService {
   //hàm deleete user
   async remove(_id: string) {
     await this.userModel.deleteOne({ _id });
+    await this.cacheManager.del(`user_${_id}`);
     return 'delete this user successfully';
   }
 
@@ -173,18 +197,13 @@ export class UsersService {
       expiresIn: this.configService.get('RESET_TOKEN_EXPIRED'),
     });
     const link = `http://localhost:3000/api/users/verify-email?token=${encodeURIComponent(token)}`;
-    await this.mailerService
-      .sendMail({
-        to: newemail.email,
-        subject: 'Change your email ✔',
-        template: 'change-email',
-        context: {
-          link: link,
-          name: user.name,
-        },
-      })
-      .then(() => {})
-      .catch(() => {});
+    const language = newemail.language || 'vn';
+    await this.mailService.sendEmailChangeEmail(
+      newemail.email,
+      user.name,
+      link,
+      language,
+    );
     return { message: 'link sent to new email' };
   }
 
@@ -212,6 +231,7 @@ export class UsersService {
       }
     }
   }
+
   async generate2FA(_id: string) {
     const user = await this.userModel.findById({ _id });
     if (!user) {

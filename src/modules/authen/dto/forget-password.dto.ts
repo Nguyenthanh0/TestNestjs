@@ -1,6 +1,7 @@
 import {
   IsDefined,
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -17,4 +18,8 @@ export class ForgetPasswordDto {
   @IsOptional()
   @IsString({ message: 'code must be a string' })
   code: string;
+
+  @IsOptional()
+  @IsIn(['vn', 'en'], { message: 'Ngôn ngữ không hợp lệ' })
+  language?: 'vn' | 'en' = 'vn';
 }

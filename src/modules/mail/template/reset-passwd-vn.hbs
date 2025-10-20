@@ -1,0 +1,95 @@
+<html lang='en'>
+  <head>
+    <meta charset='UTF-8' />
+    <title>Xác minh thay đổi mật khẩu</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+  </head>
+
+  <body
+    style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f7fa; color: #333;'
+  >
+    <div
+      style='max-width: 700px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'
+    >
+      <!-- HEADER ICON -->
+      <div style='text-align: center; padding-top: 24px;'>
+        <img
+          src='https://cdn-icons-png.flaticon.com/512/906/906343.png'
+          alt='Mail Icon'
+          width='64'
+          height='64'
+        />
+      </div>
+
+      <!-- TITLE -->
+      <h1
+        style='color: #007bff; text-align: center; font-size: 28px; margin: 16px 0 8px;'
+      >
+        Xác minh thay đổi mật khẩu 🔑
+      </h1>
+
+      <!-- MESSAGE BODY -->
+      <div style='padding: 0 32px 32px; text-align: center;'>
+        <p style='font-size: 16px; line-height: 1.6;'>
+          <span style='font-size: 20px; font-weight: bold; color: #007bff;0'>Xin
+            chào</span>
+          <strong>{{name}}</strong>,
+        </p>
+        <p style='font-size: 16px; line-height: 1.6;'>
+          Chúng tôi đã nhận được yêu cầu thay đổi mật khẩu của bạn .
+        </p>
+        <p style='font-size: 16px; line-height: 1.6;'>
+          Mã xác minh của bạn là :
+        </p>
+
+        <!-- RESET CODE -->
+        <div
+          style='background-color: #ffcc00; padding: 20px; margin: 20px auto; width: fit-content; border-radius: 8px;'
+        >
+          <h2 style='margin: 0; color: #000; font-size: 32px;'>
+            {{resetCode}}
+          </h2>
+        </div>
+
+        <p style='font-size: 14px; color: #666;'>
+          Mã sẽ hết hạn sau
+          <strong>5 phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.
+        </p>
+
+        <!-- CTA BUTTON -->
+        <a
+          href='#'
+          style='display: inline-block; margin-top: 20px; padding: 15px 30px; background: #007bff; color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: bold;'
+        >
+          <img
+            src='https://cdn-icons-png.flaticon.com/512/2111/2111646.png'
+            alt='Send Icon'
+            width='30'
+            height='30'
+            style='vertical-align:middle;'
+          />
+          Đi đến trang đặt lại mật khẩu
+        </a>
+      </div>
+
+      <!-- FOOTER -->
+      <div
+        style='background-color: #f0f0f0; padding: 24px; text-align: center; font-size: 14px; color: #555;'
+      >
+        <p style='margin: 0;'>
+          Nếu bạn không yêu cầu, vui lòng bỏ qua email này.
+        </p>
+        <p style='margin: 8px 0 0;'>
+          Cần giúp đỡ? Liên hệ với chúng tôi tại
+          <a
+            href='https://www.facebook.com/share/1CQDRcPVwt/?mibextid=wwXIfr'
+            target='_blank'
+            style='color: #007bff; text-decoration: none; font-weight: bold;'
+          >
+            Thành Support
+          </a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

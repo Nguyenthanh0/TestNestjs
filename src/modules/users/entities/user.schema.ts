@@ -47,4 +47,5 @@ export class User {
   isTwoFAenabled: boolean;
 }
 
+export type UserDoc = User & Document;
 export const UserSchema = SchemaFactory.createForClass(User);

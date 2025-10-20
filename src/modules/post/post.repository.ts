@@ -175,7 +175,7 @@ export class PostRepository {
     return posts;
   }
 
-  async newFeed(mode: 'day' | 'week' | 'month', page: number ) {
+  async newFeed(mode: 'day' | 'week' | 'month', page: number) {
     let startDate: Date;
     let label = '';
     const limit = 10;
@@ -287,7 +287,7 @@ export class PostRepository {
     return { message: `newfeed get by ${label}`, posts };
   }
 
-  async getLatest(page: number ) {
+  async getLatest(page: number) {
     const limit = 10;
     const skip = (page - 1) * limit;
     const posts = await this.postModel.aggregate<postInterface>([

@@ -1,0 +1,156 @@
+{{!-- <html>
+  <head>
+    <title>Thành Activation Email</title>
+    <meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+  </head>
+
+  <body
+    style="margin: 0; padding: 0; min-width: 100%; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.5; background-color: #FAFAFA; color: #222222;"
+  >
+    <!-- Wrapper -->
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td align="center" style="padding: 30px 15px;">
+          <!-- Container -->
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="max-width:600px; background-color:#ffffff; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+            <tr>
+              <td style="padding: 30px; text-align:center;">
+                
+                <h2 style="margin-bottom:20px; color:#333333;">Xác minh thay đổi email</h2>
+                <p style="margin:0 0 10px 0;">Xin chào, <strong>{{name}}</strong></p>
+                <p style="margin:0 0 20px 0;">Bạn vừa yêu cầu thay đổi email cho tài khoản của mình.</p>
+                <p style="margin:0 0 10px 0;">Nhấn vào nút bên dưới để xác minh:</p>
+
+                <!-- Button -->
+                <a 
+                href="{{link}}"
+                  style="display:inline-block;
+                         padding:12px 24px;
+                         background-color:#4CAF50;
+                         color:#ffffff;
+                         font-weight:bold;
+                         text-decoration:none;
+                         border-radius:6px;">
+                  Xác minh email
+                </a>
+
+                <!-- Show raw link in text only -->
+                <p style="margin-top:20px; font-size:12px; color:#555; word-break:break-all; white-space:normal;">
+                  Nếu nút không hoạt động, hãy copy link này và dán vào trình duyệt: <br/>
+                  <span style="color:#1a73e8; text-decoration:underline;">{{link}}</span>
+                </p>
+
+                <p style="margin:30px 0 5px 0; font-size:14px; color:#555555;">
+                  Nếu không phải bạn, vui lòng bỏ qua email này.<br/>
+                  Link này sẽ hết hạn sau 10 phút.
+                </p>
+                <p style="margin-top:10px; font-size:14px; color:#888888;">Trân trọng.</p>
+
+              </td>
+            </tr>
+          </table>
+          <!-- End Container -->
+        </td>
+      </tr>
+    </table>
+    <!-- End Wrapper -->
+  </body>
+</html> --}}
+
+<html lang='vi'>
+  <head>
+    <meta charset='UTF-8' />
+    <title>Xác minh thay đổi Email</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+  </head>
+
+  <body
+    style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f7fa; color: #333;'
+  >
+    <div
+      style='max-width: 700px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);'
+    >
+      <!-- HEADER ICON -->
+      <div style='text-align: center; padding-top: 24px;'>
+        <img
+          src='https://cdn-icons-png.flaticon.com/512/561/561127.png'
+          alt='Verify Icon'
+          width='64'
+          height='64'
+        />
+      </div>
+
+      <!-- TITLE -->
+      <h1
+        style='color: #28a745; text-align: center; font-size: 26px; margin: 16px 0 8px;'
+      >
+        Xác minh thay đổi Email 📩
+      </h1>
+
+      <!-- MESSAGE BODY -->
+      <div style='padding: 0 32px 32px; text-align: center;'>
+        <p style='font-size: 16px; line-height: 1.6;font-weight: bold;'>
+          HELLO
+          <strong style='color: #28a745;'>{{name}}</strong>,
+        </p>
+        <p style='font-size: 16px; line-height: 1.6;'>
+          Bạn vừa yêu cầu thay đổi địa chỉ email cho tài khoản của mình.
+        </p>
+        <p style='font-size: 16px; line-height: 1.6;'>
+          Vui lòng nhấn vào nút bên dưới để xác minh email mới:
+        </p>
+
+        <!-- CTA BUTTON -->
+        <a
+          href='{{link}}'
+          style='display: inline-block; margin-top: 20px; padding: 15px 30px; background: #28a745; color: #ffffff; text-decoration: none; border-radius: 30px; font-weight: bold;'
+        >
+          <img
+            src='https://cdn-icons-png.flaticon.com/512/542/542638.png'
+            alt='Mail White Icon'
+            width='26'
+            height='26'
+            style='vertical-align:middle; margin-right:8px;'
+          />
+          Xác minh Email
+        </a>
+
+        <!-- FALLBACK LINK -->
+        <p
+          style='font-size: 13px; color: #666; margin-top: 24px; word-break: break-all;'
+        >
+          Nếu nút không hoạt động, hãy copy đường link sau và dán vào trình
+          duyệt:
+          <br />
+          <span
+            style='color: #007bff; text-decoration: underline;'
+          >{{link}}</span>
+        </p>
+
+        <p style='font-size: 14px; color: #666; margin-top: 20px;'>
+          Liên kết này sẽ hết hạn sau
+          <strong>10 phút</strong>.
+          <br />
+          Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.
+        </p>
+      </div>
+
+      <!-- FOOTER -->
+      <div
+        style='background-color: #f0f0f0; padding: 24px; text-align: center; font-size: 14px; color: #555;'
+      >
+        <p style='margin: 0;'>Trân trọng,</p>
+        <p style='margin: 8px 0 0;'>
+          <a
+            href='https://www.facebook.com/share/1CQDRcPVwt/?mibextid=wwXIfr'
+            target='_blank'
+            style='color: #28a745; text-decoration: none; font-weight: bold;'
+          >
+            Thành Support
+          </a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

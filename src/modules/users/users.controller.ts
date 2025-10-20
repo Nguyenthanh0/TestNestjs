@@ -3,8 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Param,
-  Delete,
   Put,
   Query,
   Req,
@@ -27,12 +25,12 @@ export class UsersController {
 
   // endpoints for USER
 
-  @Get('me')
+  @Get('user')
   getMe(@Req() req: { user: JwtUser }) {
     return this.usersService.findOne(req.user._id);
   }
 
-  @Put('me')
+  @Put('user')
   updateMe(
     @Req() req: { user: JwtUser },
     @Body() updateUserDto: UpdateUserDto,
