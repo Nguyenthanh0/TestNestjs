@@ -1,5 +1,6 @@
 import {
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,6 +10,8 @@ import { Post } from '../post/entities/post.schema';
 import mongoose, { Model } from 'mongoose';
 import { Comment } from './entities/comment.schema';
 import { CommentRepository } from './comments.repository';
+import { RedisStoreWithKeys } from '../likes/likes.service';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class CommentsService {
@@ -16,7 +19,18 @@ export class CommentsService {
     @InjectModel(Post.name) private readonly postModel: Model<Post>,
     @InjectModel(Comment.name) private readonly commentModel: Model<Comment>,
     private readonly commentRepo: CommentRepository,
+    @Inject('CACHE_MANAGER') private cacheManager: Cache,
   ) {}
+
+  //del cache
+  private async clearCommentedPostsCache(userId: string) {
+    const store = this.cacheManager.store as unknown as RedisStoreWithKeys;
+    const keys = await store.keys(`mecommentedposts_${userId}_page_*`);
+    if (keys.length > 0) {
+      await Promise.all(keys.map((key) => this.cacheManager.del(key)));
+    }
+  }
+
   async create(
     userId: string,
     postId: string,
@@ -30,7 +44,7 @@ export class CommentsService {
       postId,
     });
     await comment.save();
-
+    await this.clearCommentedPostsCache(userId);
     return { message: 'comment successfully', comment };
   }
 
@@ -68,6 +82,7 @@ export class CommentsService {
       isDeleted: true,
       deletedAt: new Date(),
     });
+    await this.clearCommentedPostsCache(userId);
     return {
       message: ' soft delete comment successsfully',
       comment: comment.content,

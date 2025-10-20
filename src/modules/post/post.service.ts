@@ -28,9 +28,6 @@ export interface postInterface {
   isDeleted: boolean;
   time_recenInteraction: Date;
 }
-interface CacheWithStore extends Cache {
-  store: RedisStore;
-}
 interface RedisStoreWithKeys extends RedisStore {
   keys: (pattern: string) => Promise<string[]>;
 }
@@ -58,8 +55,17 @@ export class PostService {
       userId: _id,
       author: { name: user.name, avatar: user.avatar },
     });
-
+    await this.clearMyPostsCache(_id);
     return { message: 'create Post successfully', post: createPost };
+  }
+
+  //xoá cache danh sách posts của user
+  private async clearMyPostsCache(userId: string) {
+    const store = this.cacheManager.store as unknown as RedisStoreWithKeys;
+    const keys = await store.keys(`myposts_${userId}_page_*`);
+    if (keys.length > 0) {
+      await Promise.all(keys.map((key) => this.cacheManager.del(key)));
+    }
   }
 
   //find one
@@ -175,12 +181,15 @@ export class PostService {
 
   // soft delete
   async softDelete(_id: string, id: string) {
+    const cacheKey = `post_${id}`;
+    await this.cacheManager.del(cacheKey);
     const user = await this.userService.findOne(_id);
     if (!user) throw new NotFoundException('User not found');
     await this.postModel.findByIdAndUpdate(id, {
       isDeleted: true,
       deleteAt: new Date(),
     });
+    await this.clearMyPostsCache(_id);
 
     return `soft delete post successfully`;
   }
@@ -202,8 +211,10 @@ export class PostService {
   }
 
   // delete
-  async delete(postId: string) {
-    const post = await this.postModel.findById(postId);
+  async delete(id: string) {
+    const cacheKey = `post_${id}`;
+    await this.cacheManager.del(cacheKey);
+    const post = await this.postModel.findById(id);
     if (!post) throw new NotFoundException('Post not found');
     await this.postModel.deleteOne({ _id: post._id });
     return {
@@ -214,9 +225,6 @@ export class PostService {
 
   // ------ sort posts ----- ///
   async newFeed(mode: 'day' | 'week' | 'month', page: number = 1) {
-    const cacheKey = `newfeed_${mode}_page_${page}`;
-    const cached = await this.cacheManager.get<Caching>(cacheKey);
-    if (cached) return cached;
     const limit = 10;
     const totalPosts = await this.postModel.countDocuments({
       isDeleted: false,
@@ -230,15 +238,11 @@ export class PostService {
       totalPosts,
       posts,
     };
-    await this.cacheManager.set(cacheKey, result);
     return result;
   }
 
   // post mới nhất
   async getLatest(page: number = 1) {
-    const cacheKey = `latestposts_page_${page}`;
-    const cached = await this.cacheManager.get<Caching>(cacheKey);
-    if (cached) return cached;
     const limit = 10;
     const totalPosts = await this.postModel.countDocuments({
       isDeleted: false,
@@ -252,15 +256,11 @@ export class PostService {
       totalPosts,
       posts,
     };
-    await this.cacheManager.set(cacheKey, result);
     return result;
   }
 
   // post có nhiều like nhất
   async getMostLikedPost(page: number = 1) {
-    const cacheKey = `mostlikedposts_page_${page}`;
-    const cached = await this.cacheManager.get<Caching>(cacheKey);
-    if (cached) return cached;
     const limit = 10;
     const totalPosts = await this.postModel.countDocuments({
       isDeleted: false,
@@ -274,16 +274,11 @@ export class PostService {
       totalPosts,
       posts,
     };
-    await this.cacheManager.set(cacheKey, result);
-
     return result;
   }
 
   // post mới được tương tác
   async getRecentInteractions(page: number = 1) {
-    const cacheKey = `recentinteractionposts_page_${page}`;
-    const cached = await this.cacheManager.get<Caching>(cacheKey);
-    if (cached) return cached;
     const limit = 10;
     const totalPosts = await this.postModel.countDocuments({
       isDeleted: false,
@@ -297,14 +292,10 @@ export class PostService {
       totalPosts,
       posts,
     };
-    await this.cacheManager.set(cacheKey, result);
     return result;
   }
 
   async getMostInteractions(page: number = 1) {
-    const cacheKey = `mostinteractionposts_page_${page}`;
-    const cached = await this.cacheManager.get<Caching>(cacheKey);
-    if (cached) return cached;
     const limit = 10;
     const totalPosts = await this.postModel.countDocuments({
       isDeleted: false,
@@ -318,7 +309,6 @@ export class PostService {
       totalPosts,
       posts,
     };
-    await this.cacheManager.set(cacheKey, result);
     return result;
   }
 
