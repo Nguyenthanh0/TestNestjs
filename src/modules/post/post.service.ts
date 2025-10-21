@@ -16,7 +16,8 @@ import { CommentsService } from '../comments/comments.service';
 import { PostRepository } from './post.repository';
 import type { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { RedisStore } from 'cache-manager-ioredis-yet';
+import Redis from 'ioredis';
+import { ConfigService } from '@nestjs/config';
 export type { Cache } from 'cache-manager';
 
 export interface postInterface {
@@ -28,10 +29,6 @@ export interface postInterface {
   isDeleted: boolean;
   time_recenInteraction: Date;
 }
-interface RedisStoreWithKeys extends RedisStore {
-  keys: (pattern: string) => Promise<string[]>;
-}
-
 @Injectable()
 export class PostService {
   constructor(
@@ -41,6 +38,7 @@ export class PostService {
     private readonly postRepo: PostRepository,
     @InjectModel(Post.name) private postModel: Model<Post>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private configService: ConfigService,
   ) {}
 
   // tạo post
@@ -61,11 +59,8 @@ export class PostService {
 
   //xoá cache danh sách posts của user
   private async clearMyPostsCache(userId: string) {
-    const store = this.cacheManager.store as unknown as RedisStoreWithKeys;
-    const keys = await store.keys(`myposts_${userId}_page_*`);
-    if (keys.length > 0) {
-      await Promise.all(keys.map((key) => this.cacheManager.del(key)));
-    }
+    const pattern = `myposts_${userId}_page_*`;
+    await this.cacheManager.del(pattern);
   }
 
   //find one

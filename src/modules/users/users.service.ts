@@ -45,7 +45,6 @@ export class UsersService {
     @InjectModel(Post.name) private readonly postModel: Model<Post>,
     private jwtService: JwtService,
     private configService: ConfigService,
-    private readonly mailerService: MailerService,
     @Inject('MINIO_CLIENT') private readonly minioClient: Client,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly mailService: MailService,

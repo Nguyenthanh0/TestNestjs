@@ -13,8 +13,8 @@ import { PostModule } from './modules/post/post.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { LikesModule } from './modules/likes/likes.module';
 import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-ioredis-yet';
 import { MailModule } from './modules/mail/mail.module';
+import { redisStore } from 'cache-manager-redis-yet';
 
 @Module({
   imports: [
@@ -61,9 +61,11 @@ import { MailModule } from './modules/mail/mail.module';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         store: await redisStore({
-          host: configService.get<string>('REDIS_HOST'),
-          port: configService.get<string>('REDIS_PORT'),
-          ttl: configService.get<string>('REDIS_TTL'),
+          socket: {
+            host: configService.get<string>('REDIS_HOST') || 'localhost',
+            port: Number(configService.get<string>('REDIS_PORT')) || 6379,
+          },
+          ttl: Number(configService.get<string>('REDIS_TTL')) || 60,
         }),
       }),
     }),

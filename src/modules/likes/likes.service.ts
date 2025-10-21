@@ -6,13 +6,8 @@ import mongoose, { Model, Mongoose } from 'mongoose';
 import { Like } from './entities/like.schema';
 import { LikeRepository } from './like.repository';
 import type { Cache } from 'cache-manager';
-import type { RedisStore } from 'cache-manager-ioredis-yet';
+import { ConfigService } from '@nestjs/config';
 
-export interface RedisStoreWithKeys {
-  keys(pattern: string): Promise<string[]>;
-  del(key: string): Promise<void>;
-  // bất cứ method khác bạn dùng
-}
 @Injectable()
 export class LikesService {
   constructor(
@@ -20,15 +15,17 @@ export class LikesService {
     @InjectModel(Like.name) private readonly likeModule: Model<Like>,
     private readonly likeRepo: LikeRepository,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: ConfigService,
   ) {}
 
   //del cache khi like/unlike post
   private async clearLikedPostsCache(userId: string) {
-    const store = this.cacheManager.store as unknown as RedisStoreWithKeys;
-    const keys = await store.keys(`melikedposts_${userId}_page_*`);
-    if (keys.length > 0) {
-      await Promise.all(keys.map((key) => this.cacheManager.del(key)));
-    }
+    // const stores = (this.cacheManager as unknown as { stores?: RedisStore[] })
+    //   .stores;
+    // const store = stores?.[0];
+
+    const pattern1 = `melikedposts_${userId}_page_1`;
+    await this.cacheManager.del(pattern1);
   }
 
   async toggleLike(userId: string, postId: string) {

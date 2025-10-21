@@ -38,8 +38,6 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
-    private usersService: UsersService,
-    private readonly mailerService: MailerService,
     private readonly configSv: ConfigService,
     private readonly mailService: MailService,
   ) {}

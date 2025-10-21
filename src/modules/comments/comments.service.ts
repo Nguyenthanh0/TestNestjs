@@ -10,7 +10,6 @@ import { Post } from '../post/entities/post.schema';
 import mongoose, { Model } from 'mongoose';
 import { Comment } from './entities/comment.schema';
 import { CommentRepository } from './comments.repository';
-import { RedisStoreWithKeys } from '../likes/likes.service';
 import type { Cache } from 'cache-manager';
 
 @Injectable()
@@ -24,11 +23,8 @@ export class CommentsService {
 
   //del cache
   private async clearCommentedPostsCache(userId: string) {
-    const store = this.cacheManager.store as unknown as RedisStoreWithKeys;
-    const keys = await store.keys(`mecommentedposts_${userId}_page_*`);
-    if (keys.length > 0) {
-      await Promise.all(keys.map((key) => this.cacheManager.del(key)));
-    }
+    const pattern = `mecommentedposts_${userId}_page_*`;
+    await this.cacheManager.del(pattern);
   }
 
   async create(
