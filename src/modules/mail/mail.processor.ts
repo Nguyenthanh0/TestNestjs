@@ -1,5 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { MailQueueName } from './queue.name';
+import {
+  MailQueueName,
+  SubjectEMail,
+  TemplateEMail,
+  TitleEmail,
+} from './queue.name';
 import { Job } from 'bullmq';
 import { MailerService } from '@nestjs-modules/mailer';
 
@@ -25,29 +30,41 @@ export class MailProcessor extends WorkerHost {
     try {
       switch (type) {
         case 'forgot-password': {
-          const template = isVn ? 'reset-passwd-vn' : 'reset-passwd-en';
+          const template = isVn
+            ? TemplateEMail.VN_FORGOTPASSWORD
+            : TemplateEMail.EN_FORGOTPASSWORD;
           const subject = isVn
-            ? 'Đặt lại mật khẩu của bạn ✔'
-            : 'Reset your Password ✔';
+            ? SubjectEMail.VN_FORGOTPASSWORD
+            : SubjectEMail.EN_FORGOTPASSWORD;
+
           await this.mailerService.sendMail({
             to,
             subject: subject,
             template: template,
-            context: { name: name, resetCode: resetCode },
+            context: {
+              name: name,
+              resetCode: resetCode,
+            },
           });
           break;
         }
 
         case 'change-email': {
-          const template = isVn ? 'change-email-vn' : 'change-email-en';
+          const template = isVn
+            ? TemplateEMail.VN_CHANGEEMAIL
+            : TemplateEMail.EN_CHANGEEMAIL;
           const subject = isVn
-            ? 'Xác minh tài khoản email mới của bạn ✔'
-            : 'Verify your new Email ✔';
+            ? SubjectEMail.VN_CHANGEEMAIL
+            : SubjectEMail.EN_CHANGEEMAIL;
+
           await this.mailerService.sendMail({
             to,
             subject: subject,
             template: template,
-            context: { name: name, link: link },
+            context: {
+              name: name,
+              link: link,
+            },
           });
           break;
         }

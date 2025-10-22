@@ -25,6 +25,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
     BullModule.registerQueue({
       name: MailQueueName.EMAIL,
     }),
+
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
