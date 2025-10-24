@@ -23,7 +23,6 @@
     "noFallthroughCasesInSwitch": false,
     "strict": true,
     "strictPropertyInitialization": false,
-    
   },
     "exclude": [
     "node_modules",

@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '@nestjs/config';
 import { Verify2faUserDto } from '../users/dto/verify2fa.dto';
 import { authenticator } from 'otplib';
+import { MailService } from '../mail/mail.service';
 
 export interface JwtUser {
   _id: string;
@@ -37,9 +38,8 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
-    private usersService: UsersService,
-    private readonly mailerService: MailerService,
     private readonly configSv: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async regiter(regisDto: RegisterUserDto) {
@@ -147,18 +147,13 @@ export class AuthService {
     user.resetCodeExpire = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
     await user.save();
 
-    await this.mailerService
-      .sendMail({
-        to: user.email, // list of receivers
-        subject: 'Reset your Password ✔', // Subject line
-        template: 'reset-passwd', // The `.hbs` extension is appended automatically
-        context: {
-          name: user.name,
-          resetCode: resetCode,
-        },
-      })
-      .then(() => {})
-      .catch(() => {});
+    const language = emaildto.language || 'vn';
+    await this.mailService.sendEmailForgotPassword(
+      user.email,
+      user.name,
+      resetCode,
+      language,
+    );
     return { message: 'Reset code sent to email' };
   }
 

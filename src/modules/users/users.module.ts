@@ -8,6 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AdminController } from './admin.controller';
 import * as Minio from 'minio';
 import { PostModule } from '../post/post.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   exports: [MongooseModule, UsersService, 'MINIO_CLIENT'],
@@ -25,6 +26,7 @@ import { PostModule } from '../post/post.module';
     }),
     ConfigModule,
     forwardRef(() => PostModule),
+    MailModule,
   ],
   controllers: [UsersController, AdminController],
   providers: [

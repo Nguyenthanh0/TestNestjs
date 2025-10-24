@@ -9,7 +9,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
-      - mongo-data:/data/db # sửa lại thành mongo-data
+      - mongo-data:/data/db 
   mailhog:
     image: mailhog/mailhog
     container_name: mailhog
@@ -45,8 +45,18 @@ services:
       - '9001:9001'
     volumes:
       - minio-data:/data
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
 volumes:
   mongo-data:
     external: true
     name: post_mongo-data
   minio-data:
+  redis-data:

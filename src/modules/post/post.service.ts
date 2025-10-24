@@ -1,19 +1,24 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
-import { UsersService } from '../users/users.service';
+import { Caching, UsersService } from '../users/users.service';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { Post } from './entities/post.schema';
-import dayjs from 'dayjs';
 import { LikesService } from '../likes/likes.service';
 import { CommentsService } from '../comments/comments.service';
 import { PostRepository } from './post.repository';
+import type { Cache } from 'cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import Redis from 'ioredis';
+import { ConfigService } from '@nestjs/config';
+export type { Cache } from 'cache-manager';
 
 export interface postInterface {
   _id: string;
@@ -24,7 +29,6 @@ export interface postInterface {
   isDeleted: boolean;
   time_recenInteraction: Date;
 }
-
 @Injectable()
 export class PostService {
   constructor(
@@ -33,6 +37,8 @@ export class PostService {
     private readonly commentService: CommentsService,
     private readonly postRepo: PostRepository,
     @InjectModel(Post.name) private postModel: Model<Post>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private configService: ConfigService,
   ) {}
 
   // tạo post
@@ -47,14 +53,26 @@ export class PostService {
       userId: _id,
       author: { name: user.name, avatar: user.avatar },
     });
-
+    await this.clearMyPostsCache(_id);
     return { message: 'create Post successfully', post: createPost };
+  }
+
+  //xoá cache danh sách posts của user
+  private async clearMyPostsCache(userId: string) {
+    const pattern = `myposts_${userId}_page_*`;
+    await this.cacheManager.del(pattern);
   }
 
   //find one
   async getPost(id: string) {
+    const cacheKey = `post_${id}`;
+    const cached = await this.cacheManager.get<Caching>(cacheKey);
+    if (cached) {
+      return { message: 'get post successfully (from cache)', cached };
+    }
     const post = await this.postRepo.GetPost(id);
     if (!post) throw new NotFoundException('Post not found');
+    await this.cacheManager.set(cacheKey, post);
     return { message: 'get post successfully', post };
   }
 
@@ -64,7 +82,9 @@ export class PostService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
+    const cacheKey = `myposts_${_id}_page_${page}`;
+    const cached = await this.cacheManager.get<Caching>(cacheKey);
+    if (cached) return cached;
     const limit = 10;
     const totalPosts = await this.postModel.countDocuments({
       userId: user._id,
@@ -73,20 +93,25 @@ export class PostService {
     const totalPage = Math.ceil(totalPosts / limit);
 
     const getMyPosts = await this.postRepo.meFindAll(_id, page);
-
-    return {
+    const result = {
       message: `all posts of ${user.name} `,
       currentPage: page,
       totalPage,
       totalPosts,
       getMyPosts,
     };
+    await this.cacheManager.set(cacheKey, result);
+
+    return result;
   }
 
   // get posts is softDelete
   async getSoftDelete(_id: string, page: number = 1) {
     const user = await this.userService.findOne(_id);
     if (!user) throw new NotFoundException('User not found');
+    const cacheKey = `mysoftDeleteposts_${_id}_page_${page}`;
+    const cached = await this.cacheManager.get<Caching>(cacheKey);
+    if (cached) return cached;
     const limit = 10;
     const skip = (page - 1) * limit;
     const totalPosts = await this.postModel.countDocuments({
@@ -94,6 +119,7 @@ export class PostService {
       isDeleted: false,
     });
     const totalPage = Math.ceil(totalPosts / limit);
+
     const posts = await this.postModel
       .find({
         userId: user._id,
@@ -101,23 +127,36 @@ export class PostService {
       })
       .skip(skip)
       .limit(limit);
-    return {
+    const result = {
       message: 'get softDelete posts successfully ',
       currentPage: page,
       totalPage,
       totalPosts,
       posts,
     };
+    await this.cacheManager.set(cacheKey, result);
+
+    return result;
   }
 
   async getAllSoftDelete(page: number = 1) {
+    const cacheKey = `allsoftDeleteposts_page_${page}`;
+    const cached = await this.cacheManager.get<Caching>(cacheKey);
+    if (cached) return cached;
     const limit = 10;
     const totalPosts = await this.postModel.countDocuments({
       isDeleted: true,
     });
     const totalPage = Math.ceil(totalPosts / limit);
     const posts = await this.postRepo.getAllSoftDelete(page);
-    return { currentPage: page, totalPage, totalPosts, posts };
+    const result = {
+      currentPage: page,
+      totalPage,
+      totalPosts,
+      posts,
+    };
+    await this.cacheManager.set(cacheKey, result);
+    return result;
   }
 
   // update post
@@ -131,17 +170,21 @@ export class PostService {
 
     Object.assign(post, updatePostDto);
     await post.save();
+    await this.cacheManager.del(`post_${id}`);
     return { message: 'update successfully', post };
   }
 
   // soft delete
   async softDelete(_id: string, id: string) {
+    const cacheKey = `post_${id}`;
+    await this.cacheManager.del(cacheKey);
     const user = await this.userService.findOne(_id);
     if (!user) throw new NotFoundException('User not found');
     await this.postModel.findByIdAndUpdate(id, {
       isDeleted: true,
       deleteAt: new Date(),
     });
+    await this.clearMyPostsCache(_id);
 
     return `soft delete post successfully`;
   }
@@ -163,8 +206,10 @@ export class PostService {
   }
 
   // delete
-  async delete(postId: string) {
-    const post = await this.postModel.findById(postId);
+  async delete(id: string) {
+    const cacheKey = `post_${id}`;
+    await this.cacheManager.del(cacheKey);
+    const post = await this.postModel.findById(id);
     if (!post) throw new NotFoundException('Post not found');
     await this.postModel.deleteOne({ _id: post._id });
     return {
@@ -181,13 +226,14 @@ export class PostService {
     });
     const totalPage = Math.ceil(totalPosts / limit);
     const posts = await this.postRepo.newFeed(mode, page);
-    return {
+    const result = {
       message: 'get newfeed successfully',
       currentPage: page,
       totalPage,
       totalPosts,
       posts,
     };
+    return result;
   }
 
   // post mới nhất
@@ -198,13 +244,14 @@ export class PostService {
     });
     const totalPage = Math.ceil(totalPosts / limit);
     const posts = await this.postRepo.getLatest(page);
-    return {
+    const result = {
       message: 'get latest posts successfully',
       currentPage: page,
       totalPage,
       totalPosts,
       posts,
     };
+    return result;
   }
 
   // post có nhiều like nhất
@@ -215,13 +262,14 @@ export class PostService {
     });
     const totalPage = Math.ceil(totalPosts / limit);
     const posts = await this.postRepo.getMostLikedPost(page);
-    return {
+    const result = {
       message: 'get most like posts successfully',
       currentPage: page,
       totalPage,
       totalPosts,
       posts,
     };
+    return result;
   }
 
   // post mới được tương tác
@@ -232,13 +280,14 @@ export class PostService {
     });
     const totalPage = Math.ceil(totalPosts / limit);
     const posts = await this.postRepo.getRecentInteractions(page);
-    return {
+    const result = {
       message: 'get recent-interaction posts successfully',
       currentPage: page,
       totalPage,
       totalPosts,
       posts,
     };
+    return result;
   }
 
   async getMostInteractions(page: number = 1) {
@@ -248,22 +297,32 @@ export class PostService {
     });
     const totalPage = Math.ceil(totalPosts / limit);
     const posts = await this.postRepo.getMostInteractions(page);
-    return {
+    const result = {
       message: 'get most interaction posts successfully',
       currentPage: page,
       totalPage,
       totalPosts,
       posts,
     };
+    return result;
   }
 
   // -----  user get posts that liked or commented
   async getPostLiked(userId: string, page: number = 1) {
+    const cacheKey = `melikedposts_${userId}_page_${page}`;
+    const cached = await this.cacheManager.get<Caching>(cacheKey);
+    if (cached) return cached;
     const post = await this.likeService.getLikedPosts(userId, page);
+    await this.cacheManager.set(cacheKey, post);
     return post;
   }
+
   async getPostCommented(userId: string, page: number = 1) {
+    const cacheKey = `mecommentedposts_${userId}_page_${page}`;
+    const cached = await this.cacheManager.get<Caching>(cacheKey);
+    if (cached) return cached;
     const posts = await this.commentService.getCommentedPosts(userId, page);
+    await this.cacheManager.set(cacheKey, posts);
     return posts;
   }
 }

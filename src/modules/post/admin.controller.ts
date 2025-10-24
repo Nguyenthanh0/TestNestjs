@@ -21,9 +21,9 @@ export class AdminPostController {
   //   return this.postService.findAll();
   // }
 
-  @Delete(':postId')
-  delete(@Param('postId') postId: string) {
-    return this.postService.delete(postId);
+  @Delete(':id')
+  delete(@Param('id') id: string) {
+    return this.postService.delete(id);
   }
 
   @Get('soft-deleted')

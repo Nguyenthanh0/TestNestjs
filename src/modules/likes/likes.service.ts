@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { CACHE_MANAGER, CacheModule } from '@nestjs/cache-manager';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Post } from '../post/entities/post.schema';
 import mongoose, { Model, Mongoose } from 'mongoose';
 import { Like } from './entities/like.schema';
 import { LikeRepository } from './like.repository';
+import type { Cache } from 'cache-manager';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class LikesService {
@@ -11,7 +14,20 @@ export class LikesService {
     @InjectModel(Post.name) private readonly postModule: Model<Post>,
     @InjectModel(Like.name) private readonly likeModule: Model<Like>,
     private readonly likeRepo: LikeRepository,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly configService: ConfigService,
   ) {}
+
+  //del cache khi like/unlike post
+  private async clearLikedPostsCache(userId: string) {
+    // const stores = (this.cacheManager as unknown as { stores?: RedisStore[] })
+    //   .stores;
+    // const store = stores?.[0];
+
+    const pattern1 = `melikedposts_${userId}_page_1`;
+    await this.cacheManager.del(pattern1);
+  }
+
   async toggleLike(userId: string, postId: string) {
     const post = await this.postModule.findById(postId);
     if (!post) throw new NotFoundException('Post not found');
@@ -22,12 +38,17 @@ export class LikesService {
       const totalLike = await this.likeModule.countDocuments({ postId });
       post.totalLike = totalLike;
       await post.save();
+      // del cache
+      await this.clearLikedPostsCache(userId);
       return { message: 'Unlike post successfully', totalLike };
     } else {
       await this.likeModule.create({ userId, postId });
       const totalLike = await this.likeModule.countDocuments({ postId });
       post.totalLike = totalLike;
       await post.save();
+      // del cache
+      await this.clearLikedPostsCache(userId);
+
       return { message: 'Like successfully', totalLike };
     }
   }

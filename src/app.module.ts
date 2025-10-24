@@ -12,7 +12,9 @@ import { APP_GUARD } from '@nestjs/core';
 import { PostModule } from './modules/post/post.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { LikesModule } from './modules/likes/likes.module';
-import * as Joi from 'joi';
+import { CacheModule } from '@nestjs/cache-manager';
+import { MailModule } from './modules/mail/mail.module';
+import { redisStore } from 'cache-manager-redis-yet';
 
 @Module({
   imports: [
@@ -35,17 +37,17 @@ import * as Joi from 'joi';
           port: Number(configService.get<string>('MAILDEV_INCOMING_PORT')),
           // ignoreTLS: true,
           secure: false,
-          // auth: {
-          //   user: configService.get<string>('MAILDEV_INCOMING_USER'),
-          //   pass: configService.get<string>('MAILDEV_INCOMING_PASS'),
-          // },
+          auth: {
+            user: configService.get<string>('MAILDEV_INCOMING_USER'),
+            pass: configService.get<string>('MAILDEV_INCOMING_PASS'),
+          },
         },
         defaults: {
           from: '"No Reply" <no-reply@localhost>',
         },
         // preview: true,
         template: {
-          dir: process.cwd() + '/src/modules/authen/template/',
+          dir: process.cwd() + '/src/modules/mail/template/',
           adapter: new HandlebarsAdapter(), // or new PugAdapter() or new EjsAdapter()
           options: {
             strict: true,
@@ -53,9 +55,25 @@ import * as Joi from 'joi';
         },
       }),
     }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        store: await redisStore({
+          socket: {
+            host: configService.get<string>('REDIS_HOST') || 'localhost',
+            port: Number(configService.get<string>('REDIS_PORT')) || 6379,
+          },
+          ttl: Number(configService.get<string>('REDIS_TTL')) || 60,
+        }),
+      }),
+    }),
+
     PostModule,
     CommentsModule,
     LikesModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
