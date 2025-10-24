@@ -15,6 +15,7 @@ import { LikesModule } from './modules/likes/likes.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { MailModule } from './modules/mail/mail.module';
 import { redisStore } from 'cache-manager-redis-yet';
+import { ExportModule } from './modules/export/export.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { redisStore } from 'cache-manager-redis-yet';
     CommentsModule,
     LikesModule,
     MailModule,
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],

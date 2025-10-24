@@ -16,7 +16,6 @@ import { CommentsService } from '../comments/comments.service';
 import { PostRepository } from './post.repository';
 import type { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
 export type { Cache } from 'cache-manager';
 
