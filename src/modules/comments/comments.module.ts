@@ -7,6 +7,7 @@ import { Comment, CommentSchema } from './entities/comment.schema';
 import { UsersModule } from '../users/users.module';
 import { AdminCommentsController } from './admin.controller';
 import { CommentRepository } from './comments.repository';
+import { WebSocketModule } from '../WebSocket/websocket.module';
 
 @Module({
   exports: [CommentsService, MongooseModule],
@@ -14,6 +15,7 @@ import { CommentRepository } from './comments.repository';
     forwardRef(() => UsersModule),
     forwardRef(() => PostModule),
     MongooseModule.forFeature([{ name: Comment.name, schema: CommentSchema }]),
+    WebSocketModule,
   ],
   controllers: [CommentsController, AdminCommentsController],
   providers: [CommentsService, CommentRepository],
