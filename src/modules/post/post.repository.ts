@@ -277,14 +277,16 @@ export class PostRepository {
           title: 1,
           content: 1,
           author: 1,
+          createdAt: 1,
+          totalLike: 1,
           likeCount: '$likeCount',
           comments: '$commentCount',
-          recentComments: '$comments',
+          recentComment: '$comments',
         },
       },
     ]);
 
-    return { message: `newfeed get by ${label}`, posts };
+    return posts;
   }
 
   async getLatest(page: number) {
@@ -388,6 +390,7 @@ export class PostRepository {
           title: 1,
           content: 1,
           author: 1,
+          createdAt: 1,
           totalLike: 1,
           recentComent: '$comments',
         },
@@ -467,6 +470,7 @@ export class PostRepository {
           title: 1,
           content: 1,
           author: 1,
+          createdAt: 1,
           time_recenInteraction: '$lastInteractionAt',
           totalLike: 1,
           recentComment: '$comments',
@@ -543,6 +547,8 @@ export class PostRepository {
           _id: 1,
           title: 1,
           author: 1,
+          createdAt: 1,
+          totalLike: 1,
           likes: '$likeCount',
           comments: '$commentCount',
           recentComment: '$comments',
