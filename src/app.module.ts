@@ -16,6 +16,9 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { MailModule } from './modules/mail/mail.module';
 import { redisStore } from 'cache-manager-redis-yet';
 import { ExportModule } from './modules/export/export.module';
+import { scheduleModule } from './modules/schedule/schedule.module';
+import { WebSocketModule } from './modules/WebSocket/websocket.module';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -26,6 +29,16 @@ import { ExportModule } from './modules/export/export.module';
       useFactory: (configService: ConfigService) => ({
         uri: configService.get<string>('MONGODB_DOCKER_LINK'),
       }),
+    }),
+    JwtModule.registerAsync({
+      useFactory: async (configService: ConfigService) => ({
+        global: true,
+        secret: configService.get<string>('JWT_SECRET_KEY'),
+        signOptions: {
+          expiresIn: configService.get<string>('ACCESS_TOKEN_EXPIRED'),
+        },
+      }),
+      inject: [ConfigService],
     }),
     UsersModule,
     AuthModule,
@@ -76,6 +89,8 @@ import { ExportModule } from './modules/export/export.module';
     LikesModule,
     MailModule,
     ExportModule,
+    scheduleModule,
+    WebSocketModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],

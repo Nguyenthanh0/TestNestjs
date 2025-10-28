@@ -33,6 +33,9 @@ export class Post {
 
   @Prop({ type: Number, default: 0 })
   totalLike: number;
+
+  @Prop({ type: Number, default: 0 })
+  totalComment: number;
 }
 
 export const PostSchema = SchemaFactory.createForClass(Post);

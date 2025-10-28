@@ -492,6 +492,7 @@ export class PostRepository {
     const posts = await this.postModel.aggregate<postInterface>([
       { $match: { isDeleted: false } },
       { $limit: 10 },
+      { $skip: skip },
       {
         $lookup: {
           from: 'likes',

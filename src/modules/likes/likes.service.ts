@@ -7,15 +7,19 @@ import { Like } from './entities/like.schema';
 import { LikeRepository } from './like.repository';
 import type { Cache } from 'cache-manager';
 import { ConfigService } from '@nestjs/config';
+import { PostGateway } from '../WebSocket/post.gateway';
+import { User } from '../users/entities/user.schema';
 
 @Injectable()
 export class LikesService {
   constructor(
     @InjectModel(Post.name) private readonly postModule: Model<Post>,
     @InjectModel(Like.name) private readonly likeModule: Model<Like>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly likeRepo: LikeRepository,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
     private readonly configService: ConfigService,
+    private readonly postGateWay: PostGateway,
   ) {}
 
   //del cache khi like/unlike post
@@ -48,6 +52,13 @@ export class LikesService {
       await post.save();
       // del cache
       await this.clearLikedPostsCache(userId);
+      const user = await this.userModel.findById(userId);
+      await this.postGateWay.notifyWhenUserLikePost(post.userId.toString(), {
+        title: post.title,
+        postId,
+        username: user?.name,
+        userId,
+      });
 
       return { message: 'Like successfully', totalLike };
     }
