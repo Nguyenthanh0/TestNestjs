@@ -28,6 +28,7 @@ export interface JwtUser {
   name: string;
   role: UserRole;
   isTwoFAenabled: boolean;
+  sub: string;
 }
 
 export interface resetPayload {

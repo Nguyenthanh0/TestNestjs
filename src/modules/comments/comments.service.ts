@@ -1,24 +1,23 @@
-import {
-  ForbiddenException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { PostGateway } from './../WebSocket/post.gateway';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Post } from '../post/entities/post.schema';
-import mongoose, { Model } from 'mongoose';
+import { Model } from 'mongoose';
 import { Comment } from './entities/comment.schema';
 import { CommentRepository } from './comments.repository';
 import type { Cache } from 'cache-manager';
+import { User } from '../users/entities/user.schema';
 
 @Injectable()
 export class CommentsService {
   constructor(
     @InjectModel(Post.name) private readonly postModel: Model<Post>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Comment.name) private readonly commentModel: Model<Comment>,
     private readonly commentRepo: CommentRepository,
     @Inject('CACHE_MANAGER') private cacheManager: Cache,
+    private readonly postGateway: PostGateway,
   ) {}
 
   //del cache
@@ -40,6 +39,18 @@ export class CommentsService {
       postId,
     });
     await comment.save();
+    await this.postModel.findByIdAndUpdate(postId, {
+      $inc: { totalComment: 1 },
+    });
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('user not found');
+    await this.postGateway.notifyWhenUserComment(post.userId.toString(), {
+      content: createCommentDto.content,
+      username: user?.name,
+      userId,
+      title: post.title,
+      postId,
+    });
     await this.clearCommentedPostsCache(userId);
     return { message: 'comment successfully', comment };
   }
@@ -78,6 +89,9 @@ export class CommentsService {
       isDeleted: true,
       deletedAt: new Date(),
     });
+    await this.postModel.findByIdAndUpdate(comment.postId, {
+      $inc: { totalComment: -1 },
+    });
     await this.clearCommentedPostsCache(userId);
     return {
       message: ' soft delete comment successsfully',
@@ -86,11 +100,20 @@ export class CommentsService {
   }
 
   async delete(id: string) {
-    const removeCmt = await this.commentModel.findByIdAndUpdate(id, {
+    const removeCmt = await this.commentModel.findOne({
+      _id: id,
+      isDeleted: false,
+    });
+    if (!removeCmt) {
+      throw new NotFoundException('Commnet not found');
+    }
+    await this.commentModel.findByIdAndUpdate(id, {
       isDeleted: true,
       deletedAt: new Date(),
     });
-    if (!removeCmt) throw new NotFoundException('Comment not found');
+    await this.postModel.findByIdAndUpdate(removeCmt.postId, {
+      $inc: { totalComment: -1 },
+    });
     return {
       message: 'Soft delete cmt successfully',
       comment: removeCmt.content,
@@ -99,11 +122,19 @@ export class CommentsService {
 
   // restore cmt
   async restore(id: string) {
-    const restoreCmt = await this.commentModel.findByIdAndUpdate(id, {
+    const restoreCmt = await this.commentModel.findOne({
+      _id: id,
+      isDeleted: true,
+    });
+    if (!restoreCmt) throw new NotFoundException('Comment not found');
+    await this.commentModel.findByIdAndUpdate(id, {
       isDeleted: false,
       deletedAt: null,
     });
-    return restoreCmt?.content;
+    await this.postModel.findByIdAndUpdate(restoreCmt.postId, {
+      $inc: { totalComment: 1 },
+    });
+    return restoreCmt.content;
   }
 
   // get post that user commented
