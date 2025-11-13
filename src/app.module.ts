@@ -19,6 +19,7 @@ import { ExportModule } from './modules/export/export.module';
 import { scheduleModule } from './modules/schedule/schedule.module';
 import { WebSocketModule } from './modules/WebSocket/websocket.module';
 import { JwtModule } from '@nestjs/jwt';
+import { TestModule } from './modules/test/test.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { JwtModule } from '@nestjs/jwt';
     ExportModule,
     scheduleModule,
     WebSocketModule,
+    TestModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
