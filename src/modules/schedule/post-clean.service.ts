@@ -27,7 +27,7 @@ export class PostCleanupService {
   //   this.logger.debug('cron chạy mỗi 5 giây');
   // }
 
-  @Cron('0 30 11 * * *')
+  @Cron('0 50 11 * * *')
   itsBreaktime() {
     this.logger.debug('Its time to have lunch !  ^.^');
   }

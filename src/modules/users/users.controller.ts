@@ -17,6 +17,8 @@ import { ForgetPasswordDto } from '../authen/dto/forget-password.dto';
 import { Public } from 'src/common/decorator/customizeGuard';
 import { Verify2faUserDto } from './dto/verify2fa.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { CreateUserDto } from './dto/create-user.dto';
+import { AdminUpdateUserDto } from './dto/adminUpsteUser.dto';
 
 @ApiTags('Users')
 @Controller('users')
